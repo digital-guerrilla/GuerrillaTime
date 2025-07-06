@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Two-Factor Authentication - Timesheet Tracker</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='guerrilla-t.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Manage Two-Factor Authentication</h1>
+        </div>
+
+        <div class="form-container">
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    <div class="flash-messages">
+                        {% for message in messages %}
+                            <div class="flash-message success">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <div class="settings-section">
+                <h3>Two-Factor Authentication Status</h3>
+                
+                {% if is_2fa_enabled %}
+                    <div class="status-enabled">
+                        <span class="status-icon">✅</span>
+                        <strong>Two-Factor Authentication is ENABLED</strong>
+                        <p>Your account is protected with an additional layer of security.</p>
+                    </div>
+
+                    <div class="backup-codes-info">
+                        <h4>Backup Codes</h4>
+                        <p>You have <strong>{{ backup_codes_count }}</strong> backup codes remaining.</p>
+                        {% if backup_codes_count < 3 %}
+                            <div class="alert alert-warning">
+                                <strong>Warning:</strong> You're running low on backup codes. Consider regenerating them.
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="actions">
+                        <button onclick="showRegenerateForm()" class="btn-secondary">Regenerate Backup Codes</button>
+                        <button onclick="showDisableForm()" class="btn-danger">Disable 2FA</button>
+                    </div>
+
+                {% else %}
+                    <div class="status-disabled">
+                        <span class="status-icon">⚠️</span>
+                        <strong>Two-Factor Authentication is DISABLED</strong>
+                        <p>Your account would be more secure with 2FA enabled.</p>
+                    </div>
+
+                    <div class="actions">
+                        <a href="{{ url_for('auth.setup_2fa') }}" class="btn-primary">Enable Two-Factor Authentication</a>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Regenerate Backup Codes Form (Hidden by default) -->
+            <div id="regenerateForm" style="display: none;" class="form-section">
+                <h4>Regenerate Backup Codes</h4>
+                <p>This will generate new backup codes and invalidate your current ones.</p>
+                
+                <form method="POST" action="{{ url_for('auth.regenerate_backup_codes') }}">
+                    <div class="form-group">
+                        <label for="regen_password">Enter your password to confirm:</label>
+                        <input type="password" id="regen_password" name="password" required>
+                    </div>
+                    <button type="submit" class="btn-warning">Regenerate Codes</button>
+                    <button type="button" onclick="hideRegenerateForm()" class="btn-link">Cancel</button>
+                </form>
+            </div>
+
+            <!-- Disable 2FA Form (Hidden by default) -->
+            <div id="disableForm" style="display: none;" class="form-section">
+                <h4>Disable Two-Factor Authentication</h4>
+                <div class="alert alert-danger">
+                    <strong>Warning:</strong> Disabling 2FA will make your account less secure. 
+                    All backup codes will be deleted.
+                </div>
+                
+                <form method="POST" action="{{ url_for('auth.disable_2fa') }}">
+                    <div class="form-group">
+                        <label for="disable_password">Enter your password to confirm:</label>
+                        <input type="password" id="disable_password" name="password" required>
+                    </div>
+                    <button type="submit" class="btn-danger">Disable 2FA</button>
+                    <button type="button" onclick="hideDisableForm()" class="btn-link">Cancel</button>
+                </form>
+            </div>
+
+            <div style="margin-top: 30px; text-align: center;">
+                <a href="{{ url_for('main.index') }}" class="btn-link">Back to Dashboard</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showRegenerateForm() {
+            document.getElementById('regenerateForm').style.display = 'block';
+            document.getElementById('disableForm').style.display = 'none';
+            document.getElementById('regen_password').focus();
+        }
+
+        function hideRegenerateForm() {
+            document.getElementById('regenerateForm').style.display = 'none';
+        }
+
+        function showDisableForm() {
+            document.getElementById('disableForm').style.display = 'block';
+            document.getElementById('regenerateForm').style.display = 'none';
+            document.getElementById('disable_password').focus();
+        }
+
+        function hideDisableForm() {
+            document.getElementById('disableForm').style.display = 'none';
+        }
+    </script>
+
+    <style>
+        .settings-section {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .status-enabled {
+            color: #155724;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .status-disabled {
+            color: #856404;
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .status-icon {
+            font-size: 1.2em;
+            margin-right: 10px;
+        }
+
+        .backup-codes-info {
+            margin: 20px 0;
+            padding: 15px;
+            background: white;
+            border-radius: 5px;
+        }
+
+        .actions {
+            margin: 20px 0;
+        }
+
+        .actions button, .actions a {
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        .form-section {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .alert {
+            padding: 12px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .alert-warning {
+            color: #856404;
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+        }
+
+        .alert-danger {
+            color: #721c24;
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+        }
+
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+
+        .btn-warning {
+            background-color: #ffc107;
+            color: #212529;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .btn-warning:hover {
+            background-color: #e0a800;
+        }
+    </style>
+</body>
+</html>

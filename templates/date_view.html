@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ customization.company_name if customization else 'Guerrilla T' }} - {{ selected_date }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='guerrilla-t.css') }}">
+    <link rel="stylesheet" href="{{ url_for('admin.custom_css') }}">
+</head>
+<body class="date-view-page">
+    <div class="container">
+        <div class="date-view-header">
+            <div class="header-title-section">
+                {% if customization and customization.logo_url %}
+                    <img src="{{ customization.logo_url }}" alt="Company Logo" class="company-logo-small">
+                {% else %}
+                    <span class="logo-emoji-small">📅</span>
+                {% endif %}
+                <div class="title-content">
+                    <h1>{{ selected_date }}</h1>
+                    <p>Detailed time tracking view</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="navigation">
+                <a href="/" class="nav-link">← Back to Today</a>
+                <a href="/view_date/{{ (selected_date | dateadd(-1)) if selected_date else '' }}" class="nav-link">← Previous Day</a>
+                <a href="/view_date/{{ (selected_date | dateadd(1)) if selected_date else '' }}" class="nav-link">Next Day →</a>
+            </div>
+
+            {% if aggregates %}
+            <div class="summary-section">
+                <h2>Daily Summary</h2>
+                <div class="summary-grid">
+                    {% for project_id, data in aggregates.items() %}
+                    <div class="summary-card">
+                        <h3>{{ data.project_name }}</h3>
+                        <div class="summary-time">{{ "%.2f"|format(data.total_minutes) }} min</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="entries-section">
+                <h2>Time Entries</h2>
+                {% if entries %}
+                <table class="entries-table">
+                    <thead>
+                        <tr>
+                            <th>Project</th>
+                            <th>Duration (h:mm)</th>
+                            <th>Last Updated</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in entries %}
+                        <tr id="entry-{{ entry.id }}">
+                            <td>
+                                <div><strong>{{ entry.project_id }}</strong></div>
+                                <div class="project-subtitle">{{ entry.project_name }}</div>
+                            </td>
+                            <td>
+                                <input type="text" 
+                                       class="edit-input" 
+                                       id="duration-{{ entry.id }}" 
+                                       value="{{ (entry.total_minutes // 60)|int }}:{{ '%02d'|format((entry.total_minutes % 60)|int) }}" 
+                                       placeholder="h:mm"
+                                       pattern="[0-9]+:[0-5][0-9]">
+                            </td>
+                            <td>{{ entry.last_updated.split('T')[1].split('.')[0] if 'T' in entry.last_updated else entry.last_updated }}</td>
+                            <td>
+                                <button class="btn success" onclick="updateEntry({{ entry.id }})">Save</button>
+                                <button class="btn danger" onclick="deleteEntry({{ entry.id }})">Delete</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <div class="total-time">
+                    <h2>Total Time Tracked</h2>
+                    <div class="time">{{ "%.2f"|format(entries | sum(attribute='total_minutes')) }} minutes</div>
+                    <div class="time-info">
+                        ({{ "%.2f"|format((entries | sum(attribute='total_minutes')) / 60) }} hours)
+                    </div>
+                </div>
+                {% else %}
+                <div class="no-entries">
+                    <h3>No time entries for this date</h3>
+                    <p>Start tracking projects to see entries here</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function updateEntry(entryId) {
+            const durationInput = document.getElementById(`duration-${entryId}`).value;
+            
+            // Parse h:mm format to minutes
+            const timeParts = durationInput.split(':');
+            if (timeParts.length !== 2) {
+                alert('Please enter time in h:mm format (e.g., 1:30 for 1 hour 30 minutes)');
+                return;
+            }
+            
+            const hours = parseInt(timeParts[0]) || 0;
+            const minutes = parseInt(timeParts[1]) || 0;
+            
+            if (minutes >= 60) {
+                alert('Minutes must be less than 60');
+                return;
+            }
+            
+            const totalMinutes = hours * 60 + minutes;
+            
+            fetch('/edit_entry', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    date: '{{ selected_date }}',
+                    entry_id: entryId,
+                    duration: totalMinutes
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Entry updated successfully!');
+                    location.reload();
+                } else {
+                    alert('Error updating entry: ' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('Error: ' + error);
+            });
+        }
+
+        function deleteEntry(entryId) {
+            if (confirm('Are you sure you want to delete this entry?')) {
+                fetch('/delete_entry', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        date: '{{ selected_date }}',
+                        entry_id: entryId
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById(`entry-${entryId}`).remove();
+                        alert('Entry deleted successfully!');
+                        location.reload();
+                    } else {
+                        alert('Error deleting entry: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    alert('Error: ' + error);
+                });
+            }
+        }
+    </script>
+    
+    <style>
+        /* Date view header customization styles */
+        .date-view-header .header-title-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+        
+        .company-logo-small {
+            width: 45px;
+            height: 45px;
+            object-fit: contain;
+        }
+        
+        .logo-emoji-small {
+            font-size: 45px;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 45px;
+            height: 45px;
+        }
+        
+        .date-view-header .title-content {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        
+        .date-view-header .title-content h1 {
+            margin: 0;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--header-text, #FFFFFF);
+        }
+        
+        .date-view-header .title-content p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: var(--header-text, #FFFFFF);
+            opacity: 0.8;
+            font-weight: 400;
+        }
+        
+        /* Responsive adjustments for date view */
+        @media (max-width: 768px) {
+            .date-view-header .header-title-section {
+                gap: 8px;
+            }
+            
+            .company-logo-small,
+            .logo-emoji-small {
+                width: 35px;
+                height: 35px;
+                font-size: 35px;
+            }
+            
+            .date-view-header .title-content h1 {
+                font-size: 1.5rem;
+            }
+            
+            .date-view-header .title-content p {
+                font-size: 0.8rem;
+            }
+        }
+    </style>
+</body>
+</html>

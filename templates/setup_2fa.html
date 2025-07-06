@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup Two-Factor Authentication - Timesheet Tracker</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='guerrilla-t.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Setup Two-Factor Authentication</h1>
+        </div>
+
+        <div class="form-container">
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    <div class="flash-messages">
+                        {% for message in messages %}
+                            <div class="flash-message error">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <div style="text-align: center; margin-bottom: 30px;">
+                <h3>Step 1: Scan QR Code</h3>
+                <p>Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)</p>
+                
+                <div style="margin: 20px 0;">
+                    <img src="{{ qr_code }}" alt="QR Code for 2FA Setup" style="max-width: 200px;">
+                </div>
+
+                <details style="margin: 20px 0;">
+                    <summary style="cursor: pointer; color: #007bff;">Can't scan? Enter this code manually</summary>
+                    <div style="margin-top: 10px; background: #f8f9fa; padding: 10px; border-radius: 5px;">
+                        <code style="font-size: 14px; word-break: break-all;">{{ secret }}</code>
+                    </div>
+                </details>
+            </div>
+
+            <div style="text-align: center;">
+                <h3>Step 2: Verify Setup</h3>
+                <p>Enter the 6-digit code from your authenticator app to complete setup</p>
+                
+                <form method="POST">
+                    <div class="form-group">
+                        <label for="token">Verification Code:</label>
+                        <input type="text" id="token" name="token" maxlength="6" pattern="[0-9]{6}" 
+                               placeholder="123456" autocomplete="off" required>
+                    </div>
+
+                    <button type="submit" class="btn-primary">Enable 2FA</button>
+                </form>
+            </div>
+
+            <div style="margin-top: 30px; text-align: center;">
+                <a href="{{ url_for('main.index') }}" class="btn-link">Cancel and Return to Dashboard</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Auto-focus on the token input
+        document.getElementById('token').focus();
+        
+        // Auto-submit when 6 digits are entered
+        document.getElementById('token').addEventListener('input', function(e) {
+            if (e.target.value.length === 6) {
+                e.target.form.submit();
+            }
+        });
+    </script>
+</body>
+</html>

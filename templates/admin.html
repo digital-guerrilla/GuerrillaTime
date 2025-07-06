@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Guerrilla T</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='guerrilla-t.css') }}">
+    <link rel="stylesheet" href="{{ url_for('admin.custom_css') }}">
+</head>
+<body class="admin-page">
+    <div class="header">
+        <h1>🛠️ Admin Panel</h1>
+        <div class="user-info">
+            <span>{{ current_user.email }}</span>
+            <span class="admin-badge">ADMIN</span>
+            <a href="{{ url_for('main.index') }}" class="btn btn-secondary">Dashboard</a>
+            <a href="{{ url_for('auth.logout') }}" class="btn btn-primary">Logout</a>
+        </div>
+    </div>
+    
+    <div class="admin-container">
+        <div class="admin-content-box">
+            <h2>Administration Dashboard</h2>
+            <p>Welcome to the admin panel. Here you can manage users, access reports, and integrate with external tools.</p>
+            
+            <div class="admin-cards">
+                <a href="{{ url_for('admin.api_docs') }}" class="admin-card">
+                    <span class="admin-card-icon">📊</span>
+                    <h3>Power BI API</h3>
+                    <p>Access REST API endpoints for Power BI integration. View documentation and example queries for connecting your timesheet data to Power BI dashboards.</p>
+                </a>
+                
+                <a href="{{ url_for('admin.project_management') }}" class="admin-card">
+                    <span class="admin-card-icon">📂</span>
+                    <h3>Project Management</h3>
+                    <p>Add, edit, and remove projects. View total time tracked per project across all users and manage project configurations.</p>
+                </a>
+                
+                <a href="{{ url_for('admin.user_management') }}" class="admin-card">
+                    <span class="admin-card-icon">👥</span>
+                    <h3>User Management</h3>
+                    <p>Manage user accounts, permissions, and access controls. View user statistics and activity reports.</p>
+                </a>
+                
+                <div class="admin-card disabled">
+                    <span class="admin-card-icon">📈</span>
+                    <h3>Analytics & Reports</h3>
+                    <p>Generate detailed reports on time tracking, project progress, and team productivity metrics.</p>
+                    <small class="coming-soon-text">Coming Soon</small>
+                </div>
+                
+                <a href="{{ url_for('admin.system_settings') }}" class="admin-card">
+                    <span class="admin-card-icon">⚙️</span>
+                    <h3>System Settings</h3>
+                    <p>Configure OAuth authentication, customize appearance, and manage API keys and system-wide settings.</p>
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

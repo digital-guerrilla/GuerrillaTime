@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Power BI API Documentation - Guerrilla T</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='guerrilla-t.css') }}">
+    <link rel="stylesheet" href="{{ url_for('admin.custom_css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>Power BI API Documentation</h1>
+                <p>REST API endpoints for timesheet data integration</p>
+            </div>
+            <a href="{{ url_for('admin.admin_panel') }}" class="btn-back">← Back to Admin Panel</a>
+        </div>
+
+        <div class="content">
+            <div class="auth-note">
+                <strong>Authentication Required:</strong> All API endpoints require Bearer token authentication. 
+                Include the Authorization header: <code>Bearer timesheet-api-key-2025</code>
+                <br><br>
+                <strong>Pagination:</strong> All endpoints use cursor-based pagination with <code>nextPageToken</code> for optimal Power BI performance.
+                <br><br>
+                <strong>Example:</strong><br>
+                <code>Authorization: Bearer timesheet-api-key-2025</code>
+            </div>
+
+            <div class="section">
+                <h2>Available Endpoints</h2>
+
+                <div class="endpoint">
+                    <h3>
+                        <span class="method get">GET</span>
+                        Timesheet Data
+                    </h3>
+                    <div class="url">/api/powerbi/timesheet_data</div>
+                    <div class="description">
+                        Returns all timesheet entries with user information. Supports filtering by date range, user, and project. <strong>Uses cursor-based pagination with nextPageToken.</strong>
+                    </div>
+                    <div class="parameters">
+                        <h4>Query Parameters (optional):</h4>
+                        <div class="param">
+                            <span class="param-name">start_date</span> <span class="param-type">(string)</span> - Filter by start date (YYYY-MM-DD format)
+                        </div>
+                        <div class="param">
+                            <span class="param-name">end_date</span> <span class="param-type">(string)</span> - Filter by end date (YYYY-MM-DD format)
+                        </div>
+                        <div class="param">
+                            <span class="param-name">user_id</span> <span class="param-type">(integer)</span> - Filter by specific user ID
+                        </div>
+                        <div class="param">
+                            <span class="param-name">project_id</span> <span class="param-type">(string)</span> - Filter by specific project ID
+                        </div>
+                        <div class="param">
+                            <span class="param-name">size</span> <span class="param-type">(integer)</span> - Records per request (default: 2500, max: 5000)
+                        </div>
+                        <div class="param">
+                            <span class="param-name">nextPageToken</span> <span class="param-type">(string)</span> - Token for next page (from previous response)
+                        </div>
+                    </div>
+                    <div class="response-example">
+{
+  "data": [
+    {
+      "id": 1,
+      "user_id": 1,
+      "user_email": "admin@example.com",
+      "date": "2025-07-05",
+      "project_id": "PROJ001",
+      "project_name": "Website Redesign",
+      "total_minutes": 120.5,
+      "total_hours": 2.01,
+      "last_updated": "2025-07-05 14:30:00",
+      "is_admin_user": true
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "per_page": 100,
+    "total_records": 1,
+    "total_pages": 1,
+    "has_next": false,
+    "has_prev": false,
+    "next_page": null,
+    "prev_page": null
+  },
+  "metadata": {
+    "records_on_page": 1,
+    "filters_applied": {
+      "start_date": null,
+      "end_date": null,
+      "user_id": null,
+      "project_id": null
+    },
+    "generated_at": "2025-07-05T17:45:00",
+    "api_version": "1.0"
+  }
+}
+                    </div>
+                </div>
+
+                <div class="endpoint">
+                    <h3>
+                        <span class="method get">GET</span>
+                        Users Data
+                    </h3>
+                    <div class="url">/api/powerbi/users</div>
+                    <div class="description">
+                        Returns all users with their time tracking statistics. <strong>Includes pagination support.</strong>
+                    </div>
+                    <div class="parameters">
+                        <h4>Query Parameters (optional):</h4>
+                        <div class="param">
+                            <span class="param-name">page</span> <span class="param-type">(integer)</span> - Page number (default: 1)
+                        </div>
+                        <div class="param">
+                            <span class="param-name">per_page</span> <span class="param-type">(integer)</span> - Records per page (default: 50, max: 500)
+                        </div>
+                    </div>
+                    <div class="response-example">
+{
+  "data": [
+    {
+      "id": 1,
+      "email": "admin@example.com",
+      "is_admin": true,
+      "created_at": "2025-07-05 10:00:00",
+      "total_entries": 25,
+      "total_minutes": 2400,
+      "total_hours": 40.0
+    }
+  ],
+  "metadata": {
+    "total_users": 1,
+    "generated_at": "2025-07-05T17:45:00",
+    "api_version": "1.0"
+  }
+}
+                    </div>
+                </div>
+
+                <div class="endpoint">
+                    <h3>
+                        <span class="method get">GET</span>
+                        Projects Data
+                    </h3>
+                    <div class="url">/api/powerbi/projects</div>
+                    <div class="description">
+                        Returns project summary statistics including total time, users, and date ranges.
+                    </div>
+                    <div class="response-example">
+{
+  "data": [
+    {
+      "project_id": "PROJ001",
+      "project_name": "Website Redesign",
+      "unique_users": 3,
+      "total_entries": 15,
+      "total_minutes": 1800,
+      "total_hours": 30.0,
+      "first_entry_date": "2025-07-01",
+      "last_entry_date": "2025-07-05",
+      "avg_minutes_per_entry": 120.0
+    }
+  ],
+  "metadata": {
+    "total_projects": 1,
+    "generated_at": "2025-07-05T17:45:00",
+    "api_version": "1.0"
+  }
+}
+                    </div>
+                </div>
+
+                <div class="endpoint">
+                    <h3>
+                        <span class="method get">GET</span>
+                        Summary Data
+                    </h3>
+                    <div class="url">/api/powerbi/summary</div>
+                    <div class="description">
+                        Returns overall system statistics and recent activity data.
+                    </div>
+                    <div class="response-example">
+{
+  "summary": {
+    "total_entries": 100,
+    "total_users": 5,
+    "total_projects": 10,
+    "total_minutes": 12000,
+    "total_hours": 200.0,
+    "earliest_entry": "2025-06-01",
+    "latest_entry": "2025-07-05",
+    "avg_minutes_per_entry": 120.0
+  },
+  "recent_activity": [
+    {
+      "date": "2025-07-05",
+      "entries_count": 8,
+      "daily_minutes": 480,
+      "daily_hours": 8.0
+    }
+  ],
+  "metadata": {
+    "generated_at": "2025-07-05T17:45:00",
+    "api_version": "1.0"
+  }
+}
+                    </div>
+                </div>
+            </div>
+
+            <div class="powerbi-setup">
+                <h3>Setting up Power BI Connection</h3>
+                <ol>
+                    <li><strong>Open Power BI Desktop</strong> and click "Get Data"</li>
+                    <li><strong>Select "Web"</strong> as your data source</li>
+                    <li><strong>Enter the API URL:</strong> 
+                        <code>http://127.0.0.1:5000/api/powerbi/timesheet_data</code><br>
+                        (Replace with your server URL in production)
+                    </li>
+                    <li><strong>Configure Authentication:</strong>
+                        <ul>
+                            <li>Choose "Anonymous" authentication in Power BI</li>
+                            <li>In Advanced options, add a custom header:</li>
+                            <li><strong>Header Name:</strong> Authorization</li>
+                            <li><strong>Header Value:</strong> Bearer timesheet-api-key-2025</li>
+                            <li>(Replace with your actual API key from environment variable)</li>
+                        </ul>
+                    </li>
+                    <li><strong>Load Data:</strong> Power BI will connect and load the JSON data</li>
+                    <li><strong>Transform Data:</strong> Use Power BI's query editor to expand the nested JSON structure</li>
+                    <li><strong>Create Reports:</strong> Build dashboards and visualizations using the loaded data</li>
+                    <li><strong>Set up Refresh:</strong> Configure automatic data refresh in Power BI Service</li>
+                </ol>
+                
+                <p><strong>Note:</strong> For production environments, ensure your Flask app is running on a publicly accessible server with HTTPS enabled.</p>
+            </div>
+
+            <div class="section">
+                <h2>Cursor-Based Pagination</h2>
+                <p>All API endpoints use cursor-based pagination with <code>nextPageToken</code> for optimal performance with large datasets:</p>
+                <div class="parameters">
+                    <div class="param">
+                        <span class="param-name">size</span> <span class="param-type">(integer)</span> - Number of records per request (default: 2500, max: 5000)
+                    </div>
+                    <div class="param">
+                        <span class="param-name">nextPageToken</span> <span class="param-type">(string)</span> - Token for next page (from previous response)
+                    </div>
+                </div>
+                
+                <h3>Power BI M Code Example</h3>
+                <p>Copy and paste this M code in Power BI for automatic cursor-based pagination:</p>
+                <div class="response-example">
+<span class="m-keyword">let</span>
+    <span class="m-function">Source</span> = (endpoint <span class="m-keyword">as text</span>, token <span class="m-keyword">as text</span>, <span class="m-keyword">optional</span> filters <span class="m-keyword">as record</span>) =>
+<span class="m-keyword">let</span>
+    baseUrl = <span class="m-string">"http://127.0.0.1:5000/api/powerbi/"</span>,
+    headers = [<span class="m-string">#"Content-Type"</span>=<span class="m-string">"application/json"</span>, <span class="m-string">Authorization</span>=<span class="m-string">"Bearer "</span> & token],
+    
+    <span class="m-comment">// Build filter parameters from record</span>
+    filterParams = <span class="m-keyword">if</span> filters = <span class="m-keyword">null</span> <span class="m-keyword">then</span> <span class="m-string">""</span> <span class="m-keyword">else</span> 
+        <span class="m-function">List.Accumulate</span>(
+            <span class="m-function">Record.FieldNames</span>(filters), 
+            <span class="m-string">""</span>, 
+            (state, current) => state & <span class="m-string">"&"</span> & current & <span class="m-string">"="</span> & <span class="m-function">Text.From</span>(<span class="m-function">Record.Field</span>(filters, current))
+        ),
+    
+    <span class="m-comment">// Initial request URL</span>
+    initUrl = baseUrl & endpoint & <span class="m-string">"?size=2500&nextPageToken="</span> & filterParams,
+    initReq = <span class="m-function">Json.Document</span>(<span class="m-function">Web.Contents</span>(initUrl, [Headers=headers])),
+    initData = initReq[data],
+    
+    <span class="m-comment">// Recursive function to gather all pages</span>
+    gather = (data <span class="m-keyword">as list</span>, req) =>
+    <span class="m-keyword">let</span>
+        newtoken = req[metadata][nextPageToken],
+        nextUrl = baseUrl & endpoint & <span class="m-string">"?size=2500&nextPageToken="</span> & newtoken & filterParams,
+        newReq = <span class="m-function">Json.Document</span>(<span class="m-function">Web.Contents</span>(nextUrl, [Headers=headers])),
+        newdata = newReq[data],
+        combinedData = <span class="m-function">List.Combine</span>({data, newdata}),
+        check = <span class="m-keyword">if</span> newReq[metadata][nextPageToken] = <span class="m-keyword">null</span> <span class="m-keyword">then</span> combinedData <span class="m-keyword">else</span> @gather(combinedData, newReq)
+    <span class="m-keyword">in</span> 
+        check,
+    
+    <span class="m-comment">// Get all data with automatic pagination</span>
+    outputList = <span class="m-keyword">if</span> initReq[metadata][nextPageToken] = <span class="m-keyword">null</span> <span class="m-keyword">then</span> initData <span class="m-keyword">else</span> gather(initData, initReq),
+    expand = <span class="m-function">Table.FromRecords</span>(outputList)
+<span class="m-keyword">in</span> 
+    expand
+<span class="m-keyword">in</span>
+    <span class="m-function">Source</span>
+
+<span class="m-comment">// Usage Examples:</span>
+<span class="m-comment">// Source("timesheet_data", "timesheet-api-key-2025", null)</span>
+<span class="m-comment">// Source("timesheet_data", "timesheet-api-key-2025", [start_date="2025-01-01", end_date="2025-01-31"])</span>
+<span class="m-comment">// Source("users", "timesheet-api-key-2025", null)</span>
+                </div>
+                
+                <div class="powerbi-setup">
+                    <h4>📋 Setup Instructions:</h4>
+                    <ol>
+                        <li>Open Power BI Desktop</li>
+                        <li>Go to <strong>Home</strong> → <strong>Get Data</strong> → <strong>Blank Query</strong></li>
+                        <li>In the Query Editor, paste the M code above</li>
+                        <li>Replace <code>127.0.0.1:5000</code> with your server URL if different</li>
+                        <li>Replace <code>"timesheet-api-key-2025"</code> with your actual API key</li>
+                        <li>Call the function: <code>Source("timesheet_data", "your-api-key", null)</code></li>
+                    </ol>
+                </div>
+                
+                <div class="endpoint">
+                    <h3>API Information Endpoint</h3>
+                    <div class="url">/api/powerbi/info</div>
+                    <div class="description">Get detailed API documentation and endpoint information</div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Example URLs with Filters and Cursor-based Pagination</h2>
+                <div class="endpoint">
+                    <div class="url">/api/powerbi/timesheet_data?start_date=2025-07-01&end_date=2025-07-31&size=1000</div>
+                    <div class="description">Get first 1000 timesheet records for July 2025</div>
+                </div>
+                <div class="endpoint">
+                    <div class="url">/api/powerbi/timesheet_data?project_id=PROJ001&size=50</div>
+                    <div class="description">Get first 50 records for project PROJ001</div>
+                </div>
+                <div class="endpoint">
+                    <div class="url">/api/powerbi/timesheet_data?user_id=1&size=25&nextPageToken=eyJpZCI6MjV9</div>
+                    <div class="description">Get next 25 records for user ID 1 using cursor token</div>
+                </div>
+                <div class="endpoint">
+                    <div class="url">/api/powerbi/users?size=20</div>
+                    <div class="description">Get first 20 users with their statistics</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='api_docs.js') }}"></script>
+</body>
+</html>

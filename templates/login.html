@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guerrilla T - Login</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='guerrilla-t.css') }}">
+    <link rel="stylesheet" href="{{ url_for('admin.custom_css') }}">
+</head>
+<body class="auth-page">
+    <div class="auth-container">
+        <div class="auth-header">
+            <h1>🕐 Timesheet</h1>
+            <p>Sign in to track your time</p>
+        </div>
+        
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-danger">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <!-- Microsoft OAuth Login -->
+        {% if oauth_enabled %}
+        <div class="oauth-section">
+            <a href="{{ url_for('auth.microsoft_oauth_login') }}" class="btn btn-microsoft">
+                <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+                    <path fill="#F35325" d="M0 0h8v8H0z"/>
+                    <path fill="#81BC06" d="M10 0h8v8h-8z"/>
+                    <path fill="#05A6F0" d="M0 10h8v8H0z"/>
+                    <path fill="#FFBA08" d="M10 10h8v8h-8z"/>
+                </svg>
+                Sign in with Microsoft
+            </a>
+            
+            {% if not password_auth_disabled %}
+            <div class="auth-divider">
+                <span>or</span>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+        
+        <!-- Regular Login Form -->
+        {% if not password_auth_disabled %}
+        <form method="POST">
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" required 
+                       value="{{ request.form.email if request.form.email }}">
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            
+            <button type="submit" class="btn">Sign In</button>
+        </form>
+        
+        <div class="register-link">
+            <p>Don't have an account? <a href="{{ url_for('auth.register') }}">Register here</a></p>
+        </div>
+        {% else %}
+        <div class="sso-only-message">
+            <p>Password authentication is disabled. Please use Microsoft Sign-In to access your account.</p>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

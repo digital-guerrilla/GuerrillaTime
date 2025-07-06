@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ customization.company_name if customization else 'Guerrilla T' }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='guerrilla-t.css') }}">
+    <link rel="stylesheet" href="{{ url_for('admin.custom_css') }}">
+</head>
+<body class="main-page">
+    <div class="container">
+        <div class="header">
+            <div class="header-left">
+                <div class="header-title-section">
+                    {% if customization and customization.logo_url %}
+                        <img src="{{ customization.logo_url }}" alt="Company Logo" class="company-logo">
+                    {% else %}
+                        <span class="logo-emoji">🕐</span>
+                    {% endif %}
+                    <div class="title-content">
+                        <h1>{{ customization.company_name if customization else 'Guerrilla T' }}</h1>
+                        <p>Track your project time efficiently</p>
+                    </div>
+                </div>
+                <div class="date-selector">
+                    <input type="date" id="dateInput" value="{{ selected_date }}">
+                    <button class="btn" onclick="goToDate()">View Date</button>
+                </div>
+            </div>
+            <div class="user-info">
+                <div class="user-email">{{ current_user.email }}</div>
+                <div class="user-actions">
+                    <div class="dropdown">
+                        <button class="btn-header dropdown-toggle" onclick="toggleUserMenu()">
+                            Account ▼
+                        </button>
+                        <div class="dropdown-menu" id="userMenu">
+                            <a href="{{ url_for('auth.change_password') }}" class="dropdown-item">Change Password</a>
+                            <a href="{{ url_for('auth.manage_2fa') }}" class="dropdown-item">
+                                Two-Factor Authentication
+                                {% if current_user.totp_enabled %}
+                                    <span class="badge badge-success">Enabled</span>
+                                {% else %}
+                                    <span class="badge badge-warning">Disabled</span>
+                                {% endif %}
+                            </a>
+                            <div class="dropdown-divider"></div>
+                            {% if current_user.is_admin %}
+                            <a href="{{ url_for('admin.admin_panel') }}" class="dropdown-item">Admin Panel</a>
+                            <div class="dropdown-divider"></div>
+                            {% endif %}
+                            <a href="{{ url_for('auth.logout') }}" class="dropdown-item text-danger">Logout</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="status-panel" id="statusPanel">
+                <div class="current-tracking">
+                    <span id="statusText">No project currently being tracked</span>
+                </div>
+                <div class="elapsed-time" id="elapsedTime">&nbsp;</div>
+            </div>
+
+            <div class="project-management">
+                <h2>Add Projects to Today's List</h2>
+                <div class="add-project-section">
+                    <select id="availableProjects" class="project-select">
+                        <option value="">Select a project to add...</option>
+                        {% for project_id, project_name in available_projects.items() %}
+                        <option value="{{ project_id }}">{{ project_id }} - {{ project_name }}</option>
+                        {% endfor %}
+                    </select>
+                    <button class="btn" onclick="addProject()">Add Project</button>
+                </div>
+            </div>
+
+            <h2>Today's Projects</h2>
+            {% if selected_projects %}
+            <div class="projects-grid">
+                {% for project_id, project_name in selected_projects.items() %}
+                <div class="project-card" id="card-{{ project_id }}">
+                    <div class="project-header">
+                        <div class="project-id">{{ project_id }}</div>
+                        <button class="remove-btn" onclick="removeProject('{{ project_id }}')" title="Remove from today's list">×</button>
+                    </div>
+                    <div class="project-name">{{ project_name }}</div>
+                    <div class="project-time">
+                        Today: {{ "%.1f"|format(aggregates.get(project_id, {}).get('total_minutes', 0)) }} minutes
+                    </div>
+                    <button class="track-btn start" onclick="startTracking('{{ project_id }}')">
+                        Start Tracking
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="no-projects">
+                <h3>No projects selected for today</h3>
+                <p>Use the dropdown above to add projects to your daily list</p>
+            </div>
+            {% endif %}
+
+            {% if aggregates %}
+            <div class="aggregates">
+                <h2>Today's Summary</h2>
+                <div class="aggregate-grid">
+                    {% for project_id, data in aggregates.items() %}
+                    <div class="aggregate-card">
+                        <div class="aggregate-name">{{ data.project_name }}</div>
+                        <div class="aggregate-time">{{ "%.1f"|format(data.total_minutes) }} minutes</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Export Section -->
+            <div class="export-section">
+                <h2>Export Data</h2>
+                <form class="export-form" onsubmit="exportToExcel(event)">
+                    <div class="date-group">
+                        <label for="startDate">Start Date:</label>
+                        <input type="date" id="startDate" name="start_date" class="date-input" required>
+                    </div>
+                    <div class="date-group">
+                        <label for="endDate">End Date:</label>
+                        <input type="date" id="endDate" name="end_date" class="date-input" required>
+                    </div>
+                    <button type="submit" class="btn-export" id="exportBtn">
+                        Export to Excel
+                    </button>
+                </form>
+                <div class="export-note">
+                    Export your timesheet data as an Excel file with dates as columns and projects as rows.
+                </div>
+            </div>
+
+            <div class="navigation">
+                <a href="/view_date/{{ selected_date }}" class="nav-link">View Detailed Time Entries</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentProject = null;
+        let startTime = null;
+        let updateInterval = null;
+
+        function updateStatus() {
+            fetch('/get_current_status')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.tracking) {
+                        currentProject = data.project_id;
+                        document.getElementById('statusText').textContent = `Tracking: ${currentProject}`;
+                        document.getElementById('elapsedTime').textContent = `${data.elapsed_minutes.toFixed(1)} minutes`;
+                        
+                        // Update UI
+                        updateProjectCards();
+                        
+                        if (!updateInterval) {
+                            updateInterval = setInterval(updateElapsedTime, 1000);
+                        }
+                    } else {
+                        currentProject = null;
+                        document.getElementById('statusText').textContent = 'No project currently being tracked';
+                        document.getElementById('elapsedTime').innerHTML = '&nbsp;';
+                        updateProjectCards();
+                        
+                        if (updateInterval) {
+                            clearInterval(updateInterval);
+                            updateInterval = null;
+                        }
+                    }
+                });
+        }
+
+        function updateElapsedTime() {
+            if (currentProject && startTime) {
+                const now = new Date();
+                const elapsed = (now - startTime) / 1000 / 60; // minutes
+                document.getElementById('elapsedTime').textContent = `${elapsed.toFixed(1)} minutes`;
+            }
+        }
+
+        function updateProjectCards() {
+            document.querySelectorAll('.project-card').forEach(card => {
+                const projectId = card.id.replace('card-', '');
+                const button = card.querySelector('.track-btn');
+                
+                if (currentProject === projectId) {
+                    card.classList.add('active');
+                    button.textContent = 'Stop Tracking';
+                    button.className = 'track-btn stop';
+                    button.onclick = () => stopTracking();
+                } else {
+                    card.classList.remove('active');
+                    button.textContent = 'Start Tracking';
+                    button.className = 'track-btn start';
+                    button.onclick = () => startTracking(projectId);
+                }
+            });
+        }
+
+        function startTracking(projectId) {
+            fetch('/start_tracking', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({project_id: projectId})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    currentProject = projectId;
+                    startTime = new Date();
+                    updateStatus();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            });
+        }
+
+        function stopTracking() {
+            fetch('/stop_tracking', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    currentProject = null;
+                    startTime = null;
+                    updateStatus();
+                    location.reload(); // Refresh to show updated aggregates
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            });
+        }
+
+        function addProject() {
+            const select = document.getElementById('availableProjects');
+            const projectId = select.value;
+            
+            if (!projectId) {
+                alert('Please select a project to add');
+                return;
+            }
+            
+            fetch('/add_project', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    project_id: projectId,
+                    date: '{{ selected_date }}'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload(); // Refresh to show the new project
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            });
+        }
+
+        function removeProject(projectId) {
+            if (confirm('Remove this project from today\'s list? (Time data will be preserved)')) {
+                fetch('/remove_project', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        project_id: projectId,
+                        date: '{{ selected_date }}'
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload(); // Refresh to update the view
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                });
+            }
+        }
+
+        function exportToExcel(event) {
+            event.preventDefault();
+            
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const exportBtn = document.getElementById('exportBtn');
+            
+            if (!startDate || !endDate) {
+                alert('Please select both start and end dates');
+                return;
+            }
+            
+            if (startDate > endDate) {
+                alert('Start date cannot be after end date');
+                return;
+            }
+            
+            // Disable button and show loading state
+            exportBtn.disabled = true;
+            exportBtn.innerHTML = '⏳ Exporting...';
+            
+            // Create form data (not JSON)
+            const formData = new FormData();
+            formData.append('start_date', startDate);
+            formData.append('end_date', endDate);
+            
+            // Send request to export endpoint
+            fetch('/export_excel', {
+                method: 'POST',
+                body: formData  // Send as form data, not JSON
+            })
+            .then(response => {
+                if (response.ok) {
+                    return response.blob();
+                }
+                return response.text().then(text => {
+                    throw new Error(`Export failed: ${text}`);
+                });
+            })
+            .then(blob => {
+                // Create download link
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                
+                // Create filename with date range
+                const filename = `timesheet_${startDate}_to_${endDate}.xlsx`;
+                link.download = filename;
+                
+                // Trigger download
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // Clean up
+                window.URL.revokeObjectURL(url);
+            })
+            .catch(error => {
+                console.error('Export error:', error);
+                alert(`Error exporting data: ${error.message}`);
+            })
+            .finally(() => {
+                // Re-enable button
+                exportBtn.disabled = false;
+                exportBtn.innerHTML = '📥 Export to Excel';
+            });
+        }
+
+        function goToDate() {
+            const date = document.getElementById('dateInput').value;
+            if (date) {
+                window.location.href = `/date/${date}`;
+            }
+        }
+
+        // Initialize
+        updateStatus();
+        
+        // Set default date range (current month)
+        const today = new Date();
+        const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+        const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        
+        document.getElementById('startDate').value = firstDay.toISOString().split('T')[0];
+        document.getElementById('endDate').value = lastDay.toISOString().split('T')[0];
+        
+        // Update status every 5 seconds
+        setInterval(updateStatus, 5000);
+
+        // User menu dropdown functionality
+        function toggleUserMenu() {
+            const menu = document.getElementById('userMenu');
+            menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const dropdown = document.querySelector('.dropdown');
+            const menu = document.getElementById('userMenu');
+            
+            if (!dropdown.contains(event.target)) {
+                menu.style.display = 'none';
+            }
+        });
+    </script>
+    
+    <style>
+        /* Header customization styles */
+        .header-title-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .company-logo {
+            width: 60px;
+            height: 60px;
+            object-fit: contain;
+        }
+        
+        .logo-emoji {
+            font-size: 60px;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 60px;
+            height: 60px;
+        }
+        
+        .title-content {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .title-content h1 {
+            margin: 0;
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: var(--header-text, #FFFFFF);
+        }
+        
+        .title-content p {
+            margin: 0;
+            font-size: 1rem;
+            color: var(--header-text, #FFFFFF);
+            opacity: 0.8;
+            font-weight: 400;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .header-title-section {
+                gap: 10px;
+            }
+            
+            .company-logo,
+            .logo-emoji {
+                width: 45px;
+                height: 45px;
+                font-size: 45px;
+            }
+            
+            .title-content h1 {
+                font-size: 1.8rem;
+            }
+            
+            .title-content p {
+                font-size: 0.9rem;
+            }
+        }
+
+        /* User dropdown menu styles */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-toggle {
+            cursor: pointer;
+            border: none;
+            background: none;
+            color: inherit;
+            font: inherit;
+        }
+
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            right: 0;
+            background-color: white;
+            min-width: 220px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            border-radius: 6px;
+            z-index: 1000;
+            border: 1px solid #ddd;
+            margin-top: 5px;
+        }
+
+        .dropdown-item {
+            color: #333;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #f8f9fa;
+        }
+
+        .dropdown-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .dropdown-item.text-danger {
+            color: #dc3545;
+        }
+
+        .dropdown-divider {
+            height: 1px;
+            background-color: #e9ecef;
+            margin: 0;
+        }
+
+        .badge {
+            font-size: 0.75em;
+            padding: 0.25em 0.4em;
+            border-radius: 0.25rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-success {
+            color: #155724;
+            background-color: #d4edda;
+        }
+
+        .badge-warning {
+            color: #856404;
+            background-color: #fff3cd;
+        }
+    </style>
+</body>
+</html>

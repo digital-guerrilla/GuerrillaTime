@@ -1,0 +1,1530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Settings - Guerrilla T</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='guerrilla-t.css') }}">
+    <link rel="stylesheet" href="{{ url_for('admin.custom_css') }}">
+</head>
+<body class="admin-page">
+    <div class="header">
+        <h1>⚙️ System Settings</h1>
+        <div class="user-info">
+            <span>{{ current_user.email }}</span>
+            <span class="admin-badge">ADMIN</span>
+            <a href="{{ url_for('admin.admin_panel') }}" class="btn btn-secondary">Back to Admin</a>
+            <a href="{{ url_for('main.index') }}" class="btn btn-secondary">Dashboard</a>
+            <a href="{{ url_for('auth.logout') }}" class="btn btn-primary">Logout</a>
+        </div>
+    </div>
+    
+    <div class="admin-container">
+        <div class="admin-content-box">
+            <div class="section-header">
+                <h2>System Configuration</h2>
+                <p>Configure OAuth authentication, customize appearance, and manage system-wide settings.</p>
+            </div>
+
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'success' if category == 'success' else 'error' if category == 'error' else 'info' }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <!-- Settings Tabs -->
+            <div class="settings-tabs">
+                <div class="tab-navigation">
+                    <button class="tab-button active" onclick="showSettingsTab('oauth')">OAuth & SSO</button>
+                    <button class="tab-button" onclick="showSettingsTab('customization')">Customization</button>
+                    <button class="tab-button" onclick="showSettingsTab('authentication')">Authentication</button>
+                    <button class="tab-button" onclick="showSettingsTab('general')">General</button>
+                </div>
+
+                <!-- OAuth Settings Tab -->
+                <div id="oauth-tab" class="settings-tab-content active">
+                    <form method="POST" action="{{ url_for('admin.update_settings') }}">
+                        <input type="hidden" name="category" value="oauth">
+                        
+                        <div class="settings-section">
+                            <h3>Single Sign-On Configuration</h3>
+                            <div class="checkbox-container">
+                                <div class="checkbox-item">
+                                    <label class="checkbox-wrapper">
+                                        <input type="checkbox" name="oauth_allow_sso" value="true" id="oauth_allow_sso"
+                                               {{ 'checked' if settings.oauth and settings.oauth.oauth_allow_sso == 'true' else '' }}
+                                               onchange="toggleOAuthSections()">
+                                        <span class="checkbox-text">Enable Single Sign-On (SSO)</span>
+                                    </label>
+                                    <small class="checkbox-help">Allow users to authenticate using Microsoft Entra ID or Google</small>
+                                </div>
+                                <div class="checkbox-item">
+                                    <label class="checkbox-wrapper">
+                                        <input type="checkbox" name="oauth_disable_passwords" value="true" 
+                                               {{ 'checked' if settings.oauth and settings.oauth.oauth_disable_passwords == 'true' else '' }}>
+                                        <span class="checkbox-text">Disable Password Authentication (SSO Only)</span>
+                                    </label>
+                                    <small class="checkbox-help">Force all users to authenticate via SSO only</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="oauth-config-sections" id="oauth-config-sections" style="{{ 'display: block;' if settings.oauth and settings.oauth.oauth_allow_sso == 'true' else 'display: none;' }}">
+
+                        <div class="settings-section">
+                            <h3>Microsoft Entra ID (Azure AD)</h3>
+                            <div class="form-group">
+                                <label for="oauth_tenant_id">Tenant ID:</label>
+                                <input type="text" id="oauth_tenant_id" name="oauth_tenant_id" 
+                                       value="{{ settings.oauth.oauth_tenant_id if settings.oauth else '' }}"
+                                       placeholder="Enter your Microsoft Entra ID Tenant ID">
+                                <small class="form-help">Found in Azure Portal > Entra ID > Overview</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="oauth_client_id">Client ID:</label>
+                                <input type="text" id="oauth_client_id" name="oauth_client_id" 
+                                       value="{{ settings.oauth.oauth_client_id if settings.oauth else '' }}"
+                                       placeholder="Enter your application's Client ID">
+                            </div>
+                            <div class="form-group">
+                                <label for="oauth_client_secret">Client Secret:</label>
+                                <input type="password" id="oauth_client_secret" name="oauth_client_secret" 
+                                       value="{{ settings.oauth.oauth_client_secret if settings.oauth else '' }}"
+                                       placeholder="Enter your application's Client Secret">
+                                <small class="form-help">Keep this secure - it's encrypted in the database</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="oauth_redirect_uri">Redirect URI:</label>
+                                <input type="url" id="oauth_redirect_uri" name="oauth_redirect_uri" 
+                                       value="{{ settings.oauth.oauth_redirect_uri if settings.oauth else 'http://localhost:5000/auth/oauth/microsoft/callback' }}"
+                                       placeholder="http://localhost:5000/auth/oauth/microsoft/callback">
+                                <small class="form-help">This must exactly match the redirect URI configured in your Azure app registration</small>
+                                <button type="button" class="btn btn-sm btn-secondary" onclick="copyToClipboard('oauth_redirect_uri')" style="margin-left: 10px; margin-top: 5px;">Copy</button>
+                            </div>
+                        </div>
+
+                        <div class="settings-section">
+                            <h3>Google OAuth</h3>
+                            <div class="form-group">
+                                <label for="oauth_google_client_id">Google Client ID:</label>
+                                <input type="text" id="oauth_google_client_id" name="oauth_google_client_id" 
+                                       value="{{ settings.oauth.oauth_google_client_id if settings.oauth else '' }}"
+                                       placeholder="Enter your Google OAuth Client ID">
+                            </div>
+                            <div class="form-group">
+                                <label for="oauth_google_client_secret">Google Client Secret:</label>
+                                <input type="password" id="oauth_google_client_secret" name="oauth_google_client_secret" 
+                                       value="{{ settings.oauth.oauth_google_client_secret if settings.oauth else '' }}"
+                                       placeholder="Enter your Google OAuth Client Secret">
+                            </div>
+                        </div>
+
+                        <div class="oauth-instructions">
+                            <div class="instruction-section">
+                                <h4>Microsoft Entra ID Setup Instructions</h4>
+                                <ol>
+                                    <li>Go to <a href="https://portal.azure.com" target="_blank">Azure Portal</a></li>
+                                    <li>Navigate to Entra ID > App registrations > New registration</li>
+                                    <li><strong>Set redirect URI to the value configured above</strong> (copy from the Redirect URI field)</li>
+                                    <li>Copy the Application (client) ID and Tenant ID</li>
+                                    <li>Go to Certificates & secrets > New client secret</li>
+                                    <li>Copy the client secret value (available only once)</li>
+                                    <li>Go to API permissions > Add a permission > Microsoft Graph > Delegated permissions > User.Read</li>
+                                </ol>
+                                <div class="setup-note">
+                                    <strong>⚠️ Important:</strong> The redirect URI must be configured in Azure before authentication will work.
+                                </div>
+                            </div>
+                            <div class="instruction-section">
+                                <h4>Google OAuth Setup Instructions</h4>
+                                <ol>
+                                    <li>Go to <a href="https://console.cloud.google.com" target="_blank">Google Cloud Console</a></li>
+                                    <li>Create a new project or select existing project</li>
+                                    <li>Enable the Google+ API</li>
+                                    <li>Go to Credentials > Create Credentials > OAuth client ID</li>
+                                    <li>Set authorized redirect URI to: <code>{{ request.url_root }}auth/oauth/google/callback</code></li>
+                                    <li>Copy the Client ID and Client Secret</li>
+                                </ol>
+                            </div>
+                        </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" onclick="testOAuthConfig()">Test Configuration</button>
+                            <button type="submit" class="btn btn-primary">Save OAuth Settings</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Customization Settings Tab -->
+                <div id="customization-tab" class="settings-tab-content">
+                    <form method="POST" action="{{ url_for('admin.update_settings') }}" enctype="multipart/form-data">
+                        <input type="hidden" name="category" value="customization">
+                        
+                        <!-- Branding Section -->
+                        <div class="settings-section">
+                            <h3>🏢 Branding & Identity</h3>
+                            <div class="form-row">
+                                <div class="form-group form-group-half">
+                                    <label for="custom_company_name">Company Name:</label>
+                                    <input type="text" id="custom_company_name" name="custom_company_name" 
+                                           value="{{ settings.customization.custom_company_name if settings.customization else '' }}"
+                                           placeholder="Your Company Name">
+                                </div>
+                                <div class="form-group form-group-half">
+                                    <label for="custom_accent_color">Primary Accent Color:</label>
+                                    <div class="color-picker-group">
+                                        <input type="color" id="custom_accent_color" name="custom_accent_color" 
+                                               value="{{ settings.customization.custom_accent_color if settings.customization else '#323232' }}">
+                                        <input type="text" class="color-text" 
+                                               value="{{ settings.customization.custom_accent_color if settings.customization else '#323232' }}"
+                                               readonly>
+                                    </div>
+                                    <small class="form-help">Main brand color used throughout the app</small>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="logo_upload">Company Logo:</label>
+                                {% if settings.customization and settings.customization.custom_logo_url %}
+                                <div class="current-logo">
+                                    <p>Current logo:</p>
+                                    <img src="{{ settings.customization.custom_logo_url }}" alt="Current Logo" class="logo-preview">
+                                    <div class="logo-actions">
+                                        <button type="button" class="btn btn-warning btn-sm" onclick="deleteLogo()">Delete Logo</button>
+                                    </div>
+                                </div>
+                                <div class="logo-upload-section">
+                                    <p><strong>Replace with new logo:</strong></p>
+                                    <input type="file" id="logo_upload" name="logo_upload" accept="image/*">
+                                    <small class="form-help">Upload a new logo image (PNG, JPG, SVG recommended)</small>
+                                </div>
+                                {% else %}
+                                <div class="logo-upload-section">
+                                    <input type="file" id="logo_upload" name="logo_upload" accept="image/*">
+                                    <small class="form-help">Upload a logo image (PNG, JPG, SVG recommended)</small>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Color Scheme Section -->
+                        <div class="settings-section">
+                            <h3>🎨 Color Scheme</h3>
+                            
+                            <div class="color-subsection">
+                                <h4>Background Colors</h4>
+                                <div class="color-grid">
+                                    <div class="color-item">
+                                        <label for="custom_background_primary">Primary Background:</label>
+                                        <div class="color-picker-group">
+                                            <input type="color" id="custom_background_primary" name="custom_background_primary" 
+                                                   value="{{ settings.customization.custom_background_primary if settings.customization else '#323232' }}">
+                                            <input type="text" class="color-text-sm" readonly
+                                                   value="{{ settings.customization.custom_background_primary if settings.customization else '#323232' }}">
+                                        </div>
+                                    </div>
+                                    <div class="color-item">
+                                        <label for="custom_background_secondary">Secondary Background:</label>
+                                        <div class="color-picker-group">
+                                            <input type="color" id="custom_background_secondary" name="custom_background_secondary" 
+                                                   value="{{ settings.customization.custom_background_secondary if settings.customization else '#474747' }}">
+                                            <input type="text" class="color-text-sm" readonly
+                                                   value="{{ settings.customization.custom_background_secondary if settings.customization else '#474747' }}">
+                                        </div>
+                                    </div>
+                                    <div class="color-item">
+                                        <label for="custom_background_light">Light Background:</label>
+                                        <div class="color-picker-group">
+                                            <input type="color" id="custom_background_light" name="custom_background_light" 
+                                                   value="{{ settings.customization.custom_background_light if settings.customization else '#f5f5f5' }}">
+                                            <input type="text" class="color-text-sm" readonly
+                                                   value="{{ settings.customization.custom_background_light if settings.customization else '#f5f5f5' }}">
+                                        </div>
+                                    </div>
+                                    <div class="color-item">
+                                        <label for="custom_background_white">White Background:</label>
+                                        <div class="color-picker-group">
+                                            <input type="color" id="custom_background_white" name="custom_background_white" 
+                                                   value="{{ settings.customization.custom_background_white if settings.customization else '#FFFFFF' }}">
+                                            <input type="text" class="color-text-sm" readonly
+                                                   value="{{ settings.customization.custom_background_white if settings.customization else '#FFFFFF' }}">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="color-subsection">
+                                <h4>Header & Navigation Colors</h4>
+                                <div class="color-grid">
+                                    <div class="color-item">
+                                        <label for="custom_header_primary">Header Primary:</label>
+                                        <div class="color-picker-group">
+                                            <input type="color" id="custom_header_primary" name="custom_header_primary" 
+                                                   value="{{ settings.customization.custom_header_primary if settings.customization else '#323232' }}">
+                                            <input type="text" class="color-text-sm" readonly
+                                                   value="{{ settings.customization.custom_header_primary if settings.customization else '#323232' }}">
+                                        </div>
+                                    </div>
+                                    <div class="color-item">
+                                        <label for="custom_header_secondary">Header Secondary:</label>
+                                        <div class="color-picker-group">
+                                            <input type="color" id="custom_header_secondary" name="custom_header_secondary" 
+                                                   value="{{ settings.customization.custom_header_secondary if settings.customization else '#2886b6' }}">
+                                            <input type="text" class="color-text-sm" readonly
+                                                   value="{{ settings.customization.custom_header_secondary if settings.customization else '#2886b6' }}">
+                                        </div>
+                                    </div>
+                                    <div class="color-item">
+                                        <label for="custom_header_text">Header Text:</label>
+                                        <div class="color-picker-group">
+                                            <input type="color" id="custom_header_text" name="custom_header_text" 
+                                                   value="{{ settings.customization.custom_header_text if settings.customization else '#FFFFFF' }}">
+                                            <input type="text" class="color-text-sm" readonly
+                                                   value="{{ settings.customization.custom_header_text if settings.customization else '#FFFFFF' }}">
+                                        </div>
+                                    </div>
+                                    <div class="color-item">
+                                        <label for="custom_nav_background">Nav Background:</label>
+                                        <div class="color-picker-group">
+                                            <input type="color" id="custom_nav_background" name="custom_nav_background" 
+                                                   value="{{ settings.customization.custom_nav_background if settings.customization else '#f8f9fa' }}">
+                                            <input type="text" class="color-text-sm" readonly
+                                                   value="{{ settings.customization.custom_nav_background if settings.customization else '#f8f9fa' }}">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="color-subsection">
+                                <h4>Button & Interactive Colors</h4>
+                                <div class="color-grid">
+                                    <div class="color-item">
+                                        <label for="custom_button_primary">Primary Button:</label>
+                                        <div class="color-picker-group">
+                                            <input type="color" id="custom_button_primary" name="custom_button_primary" 
+                                                   value="{{ settings.customization.custom_button_primary if settings.customization else '#007bff' }}">
+                                            <input type="text" class="color-text-sm" readonly
+                                                   value="{{ settings.customization.custom_button_primary if settings.customization else '#007bff' }}">
+                                        </div>
+                                    </div>
+                                    <div class="color-item">
+                                        <label for="custom_button_secondary">Secondary Button:</label>
+                                        <div class="color-picker-group">
+                                            <input type="color" id="custom_button_secondary" name="custom_button_secondary" 
+                                                   value="{{ settings.customization.custom_button_secondary if settings.customization else '#6c757d' }}">
+                                            <input type="text" class="color-text-sm" readonly
+                                                   value="{{ settings.customization.custom_button_secondary if settings.customization else '#6c757d' }}">
+                                        </div>
+                                    </div>
+                                    <div class="color-item">
+                                        <label for="custom_button_success">Success Button:</label>
+                                        <div class="color-picker-group">
+                                            <input type="color" id="custom_button_success" name="custom_button_success" 
+                                                   value="{{ settings.customization.custom_button_success if settings.customization else '#28a745' }}">
+                                            <input type="text" class="color-text-sm" readonly
+                                                   value="{{ settings.customization.custom_button_success if settings.customization else '#28a745' }}">
+                                        </div>
+                                    </div>
+                                    <div class="color-item">
+                                        <label for="custom_button_warning">Warning Button:</label>
+                                        <div class="color-picker-group">
+                                            <input type="color" id="custom_button_warning" name="custom_button_warning" 
+                                                   value="{{ settings.customization.custom_button_warning if settings.customization else '#ffc107' }}">
+                                            <input type="text" class="color-text-sm" readonly
+                                                   value="{{ settings.customization.custom_button_warning if settings.customization else '#ffc107' }}">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="color-subsection">
+                                <h4>Text Colors</h4>
+                                <div class="color-grid">
+                                    <div class="color-item">
+                                        <label for="custom_text_primary">Primary Text:</label>
+                                        <div class="color-picker-group">
+                                            <input type="color" id="custom_text_primary" name="custom_text_primary" 
+                                                   value="{{ settings.customization.custom_text_primary if settings.customization else '#333333' }}">
+                                            <input type="text" class="color-text-sm" readonly
+                                                   value="{{ settings.customization.custom_text_primary if settings.customization else '#333333' }}">
+                                        </div>
+                                    </div>
+                                    <div class="color-item">
+                                        <label for="custom_text_secondary">Secondary Text:</label>
+                                        <div class="color-picker-group">
+                                            <input type="color" id="custom_text_secondary" name="custom_text_secondary" 
+                                                   value="{{ settings.customization.custom_text_secondary if settings.customization else '#666666' }}">
+                                            <input type="text" class="color-text-sm" readonly
+                                                   value="{{ settings.customization.custom_text_secondary if settings.customization else '#666666' }}">
+                                        </div>
+                                    </div>
+                                    <div class="color-item">
+                                        <label for="custom_text_muted">Muted Text:</label>
+                                        <div class="color-picker-group">
+                                            <input type="color" id="custom_text_muted" name="custom_text_muted" 
+                                                   value="{{ settings.customization.custom_text_muted if settings.customization else '#999999' }}">
+                                            <input type="text" class="color-text-sm" readonly
+                                                   value="{{ settings.customization.custom_text_muted if settings.customization else '#999999' }}">
+                                        </div>
+                                    </div>
+                                    <div class="color-item">
+                                        <label for="custom_text_light">Light Text:</label>
+                                        <div class="color-picker-group">
+                                            <input type="color" id="custom_text_light" name="custom_text_light" 
+                                                   value="{{ settings.customization.custom_text_light if settings.customization else '#FFFFFF' }}">
+                                            <input type="text" class="color-text-sm" readonly
+                                                   value="{{ settings.customization.custom_text_light if settings.customization else '#FFFFFF' }}">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Typography Section -->
+                        <div class="settings-section">
+                            <h3>🔤 Typography</h3>
+                            
+                            <div class="form-row">
+                                <div class="form-group form-group-full">
+                                    <label for="custom_font_family">Font Family:</label>
+                                    <select id="custom_font_family" name="custom_font_family">
+                                        <option value="Segoe UI, Tahoma, Geneva, Verdana, sans-serif" 
+                                                {{ 'selected' if (settings.customization and settings.customization.custom_font_family == 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif') else '' }}>
+                                            Segoe UI (Default)
+                                        </option>
+                                        <option value="Arial, Helvetica, sans-serif"
+                                                {{ 'selected' if (settings.customization and settings.customization.custom_font_family == 'Arial, Helvetica, sans-serif') else '' }}>
+                                            Arial
+                                        </option>
+                                        <option value="Helvetica, Arial, sans-serif"
+                                                {{ 'selected' if (settings.customization and settings.customization.custom_font_family == 'Helvetica, Arial, sans-serif') else '' }}>
+                                            Helvetica
+                                        </option>
+                                        <option value="Georgia, serif"
+                                                {{ 'selected' if (settings.customization and settings.customization.custom_font_family == 'Georgia, serif') else '' }}>
+                                            Georgia
+                                        </option>
+                                        <option value="Times New Roman, serif"
+                                                {{ 'selected' if (settings.customization and settings.customization.custom_font_family == 'Times New Roman, serif') else '' }}>
+                                            Times New Roman
+                                        </option>
+                                        <option value="Courier New, monospace"
+                                                {{ 'selected' if (settings.customization and settings.customization.custom_font_family == 'Courier New, monospace') else '' }}>
+                                            Courier New
+                                        </option>
+                                        <option value="Roboto, sans-serif"
+                                                {{ 'selected' if (settings.customization and settings.customization.custom_font_family == 'Roboto, sans-serif') else '' }}>
+                                            Roboto
+                                        </option>
+                                        <option value="Open Sans, sans-serif"
+                                                {{ 'selected' if (settings.customization and settings.customization.custom_font_family == 'Open Sans, sans-serif') else '' }}>
+                                            Open Sans
+                                        </option>
+                                        <option value="Lato, sans-serif"
+                                                {{ 'selected' if (settings.customization and settings.customization.custom_font_family == 'Lato, sans-serif') else '' }}>
+                                            Lato
+                                        </option>
+                                    </select>
+                                    <small class="form-help">Choose the primary font family for the application</small>
+                                </div>
+                            </div>
+
+                            <div class="font-subsection">
+                                <h4>Font Sizes</h4>
+                                <div class="form-row">
+                                    <div class="form-group form-group-quarter">
+                                        <label for="custom_font_size_base">Base Size:</label>
+                                        <input type="text" id="custom_font_size_base" name="custom_font_size_base" 
+                                               value="{{ settings.customization.custom_font_size_base if settings.customization else '14px' }}"
+                                               placeholder="14px">
+                                    </div>
+                                    <div class="form-group form-group-quarter">
+                                        <label for="custom_font_size_small">Small Size:</label>
+                                        <input type="text" id="custom_font_size_small" name="custom_font_size_small" 
+                                               value="{{ settings.customization.custom_font_size_small if settings.customization else '12px' }}"
+                                               placeholder="12px">
+                                    </div>
+                                    <div class="form-group form-group-quarter">
+                                        <label for="custom_font_size_large">Large Size:</label>
+                                        <input type="text" id="custom_font_size_large" name="custom_font_size_large" 
+                                               value="{{ settings.customization.custom_font_size_large if settings.customization else '16px' }}"
+                                               placeholder="16px">
+                                    </div>
+                                    <div class="form-group form-group-quarter">
+                                        <label for="custom_font_size_xlarge">X-Large Size:</label>
+                                        <input type="text" id="custom_font_size_xlarge" name="custom_font_size_xlarge" 
+                                               value="{{ settings.customization.custom_font_size_xlarge if settings.customization else '18px' }}"
+                                               placeholder="18px">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="font-subsection">
+                                <h4>Heading Sizes</h4>
+                                <div class="form-row">
+                                    <div class="form-group form-group-third">
+                                        <label for="custom_font_size_h1">H1 Size:</label>
+                                        <input type="text" id="custom_font_size_h1" name="custom_font_size_h1" 
+                                               value="{{ settings.customization.custom_font_size_h1 if settings.customization else '2.5em' }}"
+                                               placeholder="2.5em">
+                                    </div>
+                                    <div class="form-group form-group-third">
+                                        <label for="custom_font_size_h2">H2 Size:</label>
+                                        <input type="text" id="custom_font_size_h2" name="custom_font_size_h2" 
+                                               value="{{ settings.customization.custom_font_size_h2 if settings.customization else '2em' }}"
+                                               placeholder="2em">
+                                    </div>
+                                    <div class="form-group form-group-third">
+                                        <label for="custom_font_size_h3">H3 Size:</label>
+                                        <input type="text" id="custom_font_size_h3" name="custom_font_size_h3" 
+                                               value="{{ settings.customization.custom_font_size_h3 if settings.customization else '1.5em' }}"
+                                               placeholder="1.5em">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="font-subsection">
+                                <h4>Font Weights</h4>
+                                <div class="form-row">
+                                    <div class="form-group form-group-quarter">
+                                        <label for="custom_font_weight_normal">Normal:</label>
+                                        <input type="text" id="custom_font_weight_normal" name="custom_font_weight_normal" 
+                                               value="{{ settings.customization.custom_font_weight_normal if settings.customization else '400' }}"
+                                               placeholder="400">
+                                    </div>
+                                    <div class="form-group form-group-quarter">
+                                        <label for="custom_font_weight_medium">Medium:</label>
+                                        <input type="text" id="custom_font_weight_medium" name="custom_font_weight_medium" 
+                                               value="{{ settings.customization.custom_font_weight_medium if settings.customization else '500' }}"
+                                               placeholder="500">
+                                    </div>
+                                    <div class="form-group form-group-quarter">
+                                        <label for="custom_font_weight_bold">Bold:</label>
+                                        <input type="text" id="custom_font_weight_bold" name="custom_font_weight_bold" 
+                                               value="{{ settings.customization.custom_font_weight_bold if settings.customization else '600' }}"
+                                               placeholder="600">
+                                    </div>
+                                    <div class="form-group form-group-quarter">
+                                        <label for="custom_font_weight_extra_bold">Extra Bold:</label>
+                                        <input type="text" id="custom_font_weight_extra_bold" name="custom_font_weight_extra_bold" 
+                                               value="{{ settings.customization.custom_font_weight_extra_bold if settings.customization else '700' }}"
+                                               placeholder="700">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Advanced Colors Section -->
+                        <div class="settings-section">
+                            <h3>⚙️ Advanced Colors</h3>
+                            
+                            <div class="color-subsection">
+                                <h4>Form & Input Colors</h4>
+                                <div class="color-grid">
+                                    <div class="color-item">
+                                        <label for="custom_input_background">Input Background:</label>
+                                        <div class="color-picker-group">
+                                            <input type="color" id="custom_input_background" name="custom_input_background" 
+                                                   value="{{ settings.customization.custom_input_background if settings.customization else '#FFFFFF' }}">
+                                            <input type="text" class="color-text-sm" readonly
+                                                   value="{{ settings.customization.custom_input_background if settings.customization else '#FFFFFF' }}">
+                                        </div>
+                                    </div>
+                                    <div class="color-item">
+                                        <label for="custom_input_border">Input Border:</label>
+                                        <div class="color-picker-group">
+                                            <input type="color" id="custom_input_border" name="custom_input_border" 
+                                                   value="{{ settings.customization.custom_input_border if settings.customization else '#dddddd' }}">
+                                            <input type="text" class="color-text-sm" readonly
+                                                   value="{{ settings.customization.custom_input_border if settings.customization else '#dddddd' }}">
+                                        </div>
+                                    </div>
+                                    <div class="color-item">
+                                        <label for="custom_input_focus">Input Focus:</label>
+                                        <div class="color-picker-group">
+                                            <input type="color" id="custom_input_focus" name="custom_input_focus" 
+                                                   value="{{ settings.customization.custom_input_focus if settings.customization else '#007bff' }}">
+                                            <input type="text" class="color-text-sm" readonly
+                                                   value="{{ settings.customization.custom_input_focus if settings.customization else '#007bff' }}">
+                                        </div>
+                                    </div>
+                                    <div class="color-item">
+                                        <label for="custom_card_background">Card Background:</label>
+                                        <div class="color-picker-group">
+                                            <input type="color" id="custom_card_background" name="custom_card_background" 
+                                                   value="{{ settings.customization.custom_card_background if settings.customization else '#FFFFFF' }}">
+                                            <input type="text" class="color-text-sm" readonly
+                                                   value="{{ settings.customization.custom_card_background if settings.customization else '#FFFFFF' }}">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="color-subsection">
+                                <h4>Status & State Colors</h4>
+                                <div class="color-grid">
+                                    <div class="color-item">
+                                        <label for="custom_status_active">Active Status:</label>
+                                        <div class="color-picker-group">
+                                            <input type="color" id="custom_status_active" name="custom_status_active" 
+                                                   value="{{ settings.customization.custom_status_active if settings.customization else '#28a745' }}">
+                                            <input type="text" class="color-text-sm" readonly
+                                                   value="{{ settings.customization.custom_status_active if settings.customization else '#28a745' }}">
+                                        </div>
+                                    </div>
+                                    <div class="color-item">
+                                        <label for="custom_status_inactive">Inactive Status:</label>
+                                        <div class="color-picker-group">
+                                            <input type="color" id="custom_status_inactive" name="custom_status_inactive" 
+                                                   value="{{ settings.customization.custom_status_inactive if settings.customization else '#6c757d' }}">
+                                            <input type="text" class="color-text-sm" readonly
+                                                   value="{{ settings.customization.custom_status_inactive if settings.customization else '#6c757d' }}">
+                                        </div>
+                                    </div>
+                                    <div class="color-item">
+                                        <label for="custom_status_pending">Pending Status:</label>
+                                        <div class="color-picker-group">
+                                            <input type="color" id="custom_status_pending" name="custom_status_pending" 
+                                                   value="{{ settings.customization.custom_status_pending if settings.customization else '#ffc107' }}">
+                                            <input type="text" class="color-text-sm" readonly
+                                                   value="{{ settings.customization.custom_status_pending if settings.customization else '#ffc107' }}">
+                                        </div>
+                                    </div>
+                                    <div class="color-item">
+                                        <label for="custom_status_error">Error Status:</label>
+                                        <div class="color-picker-group">
+                                            <input type="color" id="custom_status_error" name="custom_status_error" 
+                                                   value="{{ settings.customization.custom_status_error if settings.customization else '#dc3545' }}">
+                                            <input type="text" class="color-text-sm" readonly
+                                                   value="{{ settings.customization.custom_status_error if settings.customization else '#dc3545' }}">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" onclick="resetToDefaults()">Reset to Defaults</button>
+                            <button type="button" class="btn btn-info" onclick="previewChanges()">Preview Changes</button>
+                            <button type="submit" class="btn btn-primary">Save Customization Settings</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Authentication Settings Tab -->
+                <div id="authentication-tab" class="settings-tab-content">
+                    <form method="POST" action="{{ url_for('admin.update_settings') }}">
+                        <input type="hidden" name="category" value="authentication">
+                        
+                        <div class="settings-section">
+                            <h3>API Configuration</h3>
+                            <div class="form-group">
+                                <label for="api_key">API Key:</label>
+                                <div class="api-key-group">
+                                    <input type="password" id="api_key" name="api_key" 
+                                           value="{{ settings.authentication.api_key if settings.authentication else '' }}"
+                                           placeholder="API Key for external integrations">
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="toggleApiKeyVisibility()">Show</button>
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="copyToClipboard('api_key')">Copy</button>
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="generateApiKey()">Generate New</button>
+                                </div>
+                                <small class="form-help">Used for Power BI and other external integrations</small>
+                            </div>
+                        </div>
+
+                        <div class="settings-section">
+                            <h3>Password Policy</h3>
+                            <div class="form-group">
+                                <label for="password_min_length">Minimum Password Length:</label>
+                                <input type="number" id="password_min_length" name="password_min_length" 
+                                       value="{{ settings.authentication.password_min_length if settings.authentication else '8' }}"
+                                       min="6" max="32">
+                            </div>
+                            <div class="form-group">
+                                <label for="session_timeout">Session Timeout (minutes):</label>
+                                <input type="number" id="session_timeout" name="session_timeout" 
+                                       value="{{ settings.authentication.session_timeout if settings.authentication else '480' }}"
+                                       min="30" max="1440">
+                                <small class="form-help">How long users stay logged in (default: 8 hours)</small>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Save Authentication Settings</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- General Settings Tab -->
+                <div id="general-tab" class="settings-tab-content">
+                    <form method="POST" action="{{ url_for('admin.update_settings') }}">
+                        <input type="hidden" name="category" value="general">
+                        
+                        <div class="settings-section">
+                            <h3>Application Settings</h3>
+                            <div class="form-group">
+                                <label for="app_name">Application Name:</label>
+                                <input type="text" id="app_name" name="app_name" 
+                                       value="{{ settings.general.app_name if settings.general else 'Guerrilla T - Timesheet' }}"
+                                       placeholder="Application Name">
+                            </div>
+                            <div class="form-group">
+                                <label for="timezone">Default Timezone:</label>
+                                <select id="timezone" name="timezone">
+                                    <option value="UTC" {{ 'selected' if (settings.general and settings.general.timezone == 'UTC') else '' }}>UTC</option>
+                                    <option value="America/New_York" {{ 'selected' if (settings.general and settings.general.timezone == 'America/New_York') else '' }}>Eastern Time</option>
+                                    <option value="America/Chicago" {{ 'selected' if (settings.general and settings.general.timezone == 'America/Chicago') else '' }}>Central Time</option>
+                                    <option value="America/Denver" {{ 'selected' if (settings.general and settings.general.timezone == 'America/Denver') else '' }}>Mountain Time</option>
+                                    <option value="America/Los_Angeles" {{ 'selected' if (settings.general and settings.general.timezone == 'America/Los_Angeles') else '' }}>Pacific Time</option>
+                                    <option value="Europe/London" {{ 'selected' if (settings.general and settings.general.timezone == 'Europe/London') else '' }}>London</option>
+                                    <option value="Europe/Paris" {{ 'selected' if (settings.general and settings.general.timezone == 'Europe/Paris') else '' }}>Paris</option>
+                                    <option value="Asia/Tokyo" {{ 'selected' if (settings.general and settings.general.timezone == 'Asia/Tokyo') else '' }}>Tokyo</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="date_format">Date Format:</label>
+                                <select id="date_format" name="date_format">
+                                    <option value="YYYY-MM-DD" {{ 'selected' if (settings.general and settings.general.date_format == 'YYYY-MM-DD') else '' }}>YYYY-MM-DD</option>
+                                    <option value="MM/DD/YYYY" {{ 'selected' if (settings.general and settings.general.date_format == 'MM/DD/YYYY') else '' }}>MM/DD/YYYY</option>
+                                    <option value="DD/MM/YYYY" {{ 'selected' if (settings.general and settings.general.date_format == 'DD/MM/YYYY') else '' }}>DD/MM/YYYY</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Save General Settings</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tab functionality
+        function showSettingsTab(tabName) {
+            // Hide all tab contents
+            const tabContents = document.querySelectorAll('.settings-tab-content');
+            tabContents.forEach(content => content.classList.remove('active'));
+            
+            // Remove active class from all tab buttons
+            const tabButtons = document.querySelectorAll('.tab-button');
+            tabButtons.forEach(button => button.classList.remove('active'));
+            
+            // Show selected tab content
+            document.getElementById(tabName + '-tab').classList.add('active');
+            
+            // Add active class to clicked button
+            event.target.classList.add('active');
+        }
+
+        // Color picker functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            // Main accent color picker
+            const colorPicker = document.getElementById('custom_accent_color');
+            const colorText = document.querySelector('.color-text');
+            
+            if (colorPicker && colorText) {
+                colorPicker.addEventListener('input', function() {
+                    colorText.value = this.value;
+                });
+            }
+
+            // Setup all color pickers
+            setupColorPickers();
+        });
+
+        function setupColorPickers() {
+            // Get all color input elements
+            const colorInputs = document.querySelectorAll('input[type="color"]');
+            
+            colorInputs.forEach(colorInput => {
+                const textInput = colorInput.parentElement.querySelector('.color-text-sm, .color-text');
+                
+                if (textInput) {
+                    // Update text field when color changes
+                    colorInput.addEventListener('input', function() {
+                        textInput.value = this.value;
+                    });
+                    
+                    // Update color picker when text changes (if valid hex)
+                    textInput.addEventListener('input', function() {
+                        if (/^#[0-9A-F]{6}$/i.test(this.value)) {
+                            colorInput.value = this.value;
+                        }
+                    });
+                    
+                    // Make text input editable for manual entry
+                    textInput.removeAttribute('readonly');
+                    textInput.style.cursor = 'text';
+                }
+            });
+        }
+
+        // Preview changes functionality
+        function previewChanges() {
+            const previewButton = document.querySelector('button[onclick="previewChanges()"]');
+            const originalText = previewButton.textContent;
+            
+            previewButton.disabled = true;
+            previewButton.textContent = 'Generating Preview...';
+            
+            // Get all color values
+            const colorInputs = document.querySelectorAll('input[type="color"]');
+            const fontInputs = document.querySelectorAll('select[name*="font"], input[name*="font"]');
+            
+            const previewData = {};
+            
+            // Collect color data
+            colorInputs.forEach(input => {
+                previewData[input.name] = input.value;
+            });
+            
+            // Collect font data
+            fontInputs.forEach(input => {
+                previewData[input.name] = input.value;
+            });
+            
+            // Apply preview styles temporarily
+            applyPreviewStyles(previewData);
+            
+            // Show preview notification
+            showPreviewNotification();
+            
+            // Reset button after preview
+            setTimeout(() => {
+                previewButton.disabled = false;
+                previewButton.textContent = originalText;
+            }, 3000);
+        }
+
+        function applyPreviewStyles(data) {
+            // Create or update preview style element
+            let previewStyle = document.getElementById('preview-styles');
+            if (!previewStyle) {
+                previewStyle = document.createElement('style');
+                previewStyle.id = 'preview-styles';
+                document.head.appendChild(previewStyle);
+            }
+
+            // Build CSS with custom properties
+            let css = ':root {\n';
+            
+            // Map settings to CSS variables
+            const cssVarMap = {
+                'custom_background_primary': '--primary-color',
+                'custom_background_secondary': '--secondary-color',
+                'custom_background_light': '--light-gray',
+                'custom_background_white': '--white',
+                'custom_header_primary': '--header-primary',
+                'custom_header_secondary': '--header-secondary',
+                'custom_header_text': '--header-text',
+                'custom_button_primary': '--button-primary',
+                'custom_button_secondary': '--button-secondary',
+                'custom_button_success': '--success-color',
+                'custom_button_warning': '--warning-color',
+                'custom_button_danger': '--danger-color',
+                'custom_text_primary': '--text-primary',
+                'custom_text_secondary': '--text-secondary',
+                'custom_text_muted': '--text-muted',
+                'custom_text_light': '--text-light',
+                'custom_accent_color': '--accent-color',
+                'custom_input_background': '--input-background',
+                'custom_input_border': '--input-border',
+                'custom_input_focus': '--input-focus'
+            };
+
+            Object.entries(cssVarMap).forEach(([setting, cssVar]) => {
+                if (data[setting]) {
+                    css += `  ${cssVar}: ${data[setting]};\n`;
+                }
+            });
+
+            // Add font family
+            if (data.custom_font_family) {
+                css += `  --font-family: ${data.custom_font_family};\n`;
+            }
+
+            css += '}\n';
+
+            // Add font styles
+            if (data.custom_font_family) {
+                css += `body { font-family: var(--font-family) !important; }\n`;
+            }
+
+            previewStyle.textContent = css;
+        }
+
+        function showPreviewNotification() {
+            // Create and show preview notification
+            const notification = document.createElement('div');
+            notification.className = 'preview-notification';
+            notification.innerHTML = `
+                <div class="preview-content">
+                    <strong>🎨 Preview Mode Active</strong>
+                    <p>You're seeing a preview of your changes. Save to make them permanent.</p>
+                    <button onclick="clearPreview()" class="btn btn-sm btn-secondary">Clear Preview</button>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Auto-remove after 10 seconds
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.remove();
+                }
+            }, 10000);
+        }
+
+        function clearPreview() {
+            const previewStyle = document.getElementById('preview-styles');
+            if (previewStyle) {
+                previewStyle.remove();
+            }
+            
+            const notification = document.querySelector('.preview-notification');
+            if (notification) {
+                notification.remove();
+            }
+        }
+
+        // Reset to defaults functionality
+        function resetToDefaults() {
+            if (confirm('Are you sure you want to reset all customization settings to their default values? This action cannot be undone.')) {
+                
+                // Default values
+                const defaults = {
+                    custom_background_primary: '#323232',
+                    custom_background_secondary: '#474747',
+                    custom_background_light: '#f5f5f5',
+                    custom_background_white: '#FFFFFF',
+                    custom_header_primary: '#323232',
+                    custom_header_secondary: '#2886b6',
+                    custom_header_text: '#FFFFFF',
+                    custom_button_primary: '#007bff',
+                    custom_button_secondary: '#6c757d',
+                    custom_button_success: '#28a745',
+                    custom_button_warning: '#ffc107',
+                    custom_button_danger: '#dc3545',
+                    custom_text_primary: '#333333',
+                    custom_text_secondary: '#666666',
+                    custom_text_muted: '#999999',
+                    custom_text_light: '#FFFFFF',
+                    custom_accent_color: '#323232',
+                    custom_input_background: '#FFFFFF',
+                    custom_input_border: '#dddddd',
+                    custom_input_focus: '#007bff',
+                    custom_font_family: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif',
+                    custom_font_size_base: '14px',
+                    custom_font_size_small: '12px',
+                    custom_font_size_large: '16px',
+                    custom_font_size_xlarge: '18px',
+                    custom_font_size_h1: '2.5em',
+                    custom_font_size_h2: '2em',
+                    custom_font_size_h3: '1.5em',
+                    custom_font_weight_normal: '400',
+                    custom_font_weight_medium: '500',
+                    custom_font_weight_bold: '600',
+                    custom_font_weight_extra_bold: '700'
+                };
+
+                // Apply default values to form
+                Object.entries(defaults).forEach(([key, value]) => {
+                    const input = document.querySelector(`[name="${key}"]`);
+                    if (input) {
+                        input.value = value;
+                        // Trigger input event to update related fields
+                        input.dispatchEvent(new Event('input'));
+                    }
+                });
+
+                alert('Default values have been restored. Remember to save your changes.');
+            }
+        }
+
+        // Generate API key
+        function generateApiKey() {
+            const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            let result = 'timesheet-api-';
+            for (let i = 0; i < 32; i++) {
+                result += characters.charAt(Math.floor(Math.random() * characters.length));
+            }
+            document.getElementById('api_key').value = result;
+        }
+
+        // Toggle API key visibility
+        function toggleApiKeyVisibility() {
+            const apiKeyInput = document.getElementById('api_key');
+            const toggleButton = document.querySelector('button[onclick="toggleApiKeyVisibility()"]');
+            
+            if (apiKeyInput.type === 'password') {
+                apiKeyInput.type = 'text';
+                toggleButton.textContent = 'Hide';
+            } else {
+                apiKeyInput.type = 'password';
+                toggleButton.textContent = 'Show';
+            }
+        }
+
+        // Toggle OAuth configuration sections
+        function toggleOAuthSections() {
+            const checkbox = document.getElementById('oauth_allow_sso');
+            const configSections = document.getElementById('oauth-config-sections');
+            
+            if (checkbox.checked) {
+                configSections.style.display = 'block';
+            } else {
+                configSections.style.display = 'none';
+            }
+        }
+
+        // Initialize OAuth sections visibility on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            toggleOAuthSections();
+        });
+
+        // Test OAuth configuration
+        function testOAuthConfig() {
+            const testButton = document.querySelector('button[onclick="testOAuthConfig()"]');
+            const originalText = testButton.textContent;
+            
+            testButton.disabled = true;
+            testButton.textContent = 'Testing...';
+            
+            fetch('{{ url_for("admin.test_oauth_config") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('✅ OAuth Configuration Test Results:\n\n' + data.message);
+                } else {
+                    alert('❌ OAuth Configuration Test Failed:\n\n' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('❌ Test Failed!\n\nError: ' + error.message);
+            })
+            .finally(() => {
+                testButton.disabled = false;
+                testButton.textContent = originalText;
+            });
+        }
+
+        // Copy to clipboard function
+        function copyToClipboard(elementId) {
+            const element = document.getElementById(elementId);
+            const text = element.value || element.textContent;
+            
+            navigator.clipboard.writeText(text).then(function() {
+                // Temporary feedback - find the button that was clicked
+                const button = document.querySelector(`button[onclick="copyToClipboard('${elementId}')"]`);
+                if (button) {
+                    const originalText = button.textContent;
+                    const originalBg = button.style.backgroundColor;
+                    
+                    button.textContent = 'Copied!';
+                    button.style.backgroundColor = '#28a745';
+                    
+                    setTimeout(() => {
+                        button.textContent = originalText;
+                        button.style.backgroundColor = originalBg;
+                    }, 2000);
+                }
+            }).catch(function(err) {
+                alert('Failed to copy to clipboard: ' + err);
+            });
+        }
+
+        // Delete logo function
+        function deleteLogo() {
+            if (confirm('Are you sure you want to delete the current logo? This action cannot be undone.')) {
+                fetch('{{ url_for("admin.delete_logo") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Logo deleted successfully!');
+                        location.reload();
+                    } else {
+                        alert('Error deleting logo: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    alert('Error deleting logo: ' + error.message);
+                });
+            }
+        }
+    </script>
+    
+    <style>
+        /* Settings-specific styles */
+        .settings-tabs {
+            margin-top: 20px;
+        }
+
+        /* Tab Navigation - Dashboard style */
+        .tab-navigation {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .tab-button {
+            background: #f8f9fa;
+            border: 2px solid #dee2e6;
+            padding: 12px 24px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #495057;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 120px;
+        }
+        
+        .tab-button:hover {
+            background-color: #e9ecef;
+            border-color: #007bff;
+            color: #007bff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,123,255,0.15);
+        }
+        
+        .tab-button.active {
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            color: white;
+            border-color: #007bff;
+            box-shadow: 0 4px 12px rgba(0,123,255,0.3);
+        }
+        
+        .settings-tab-content {
+            display: none;
+            padding: 20px 0;
+        }
+        
+        .settings-tab-content.active {
+            display: block;
+        }
+        
+        .settings-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary-color, #007bff);
+        }
+        
+        .settings-section h3 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 1px solid #dee2e6;
+            padding-bottom: 10px;
+        }
+
+        /* Checkbox styling */
+        .checkbox-container {
+            margin-bottom: 20px;
+        }
+
+        .checkbox-item {
+            margin-bottom: 15px;
+        }
+
+        .checkbox-wrapper {
+            display: flex !important;
+            align-items: flex-start;
+            gap: 12px;
+            cursor: pointer;
+            margin-bottom: 5px;
+        }
+
+        .checkbox-wrapper input[type="checkbox"] {
+            margin: 0;
+            transform: scale(1.2);
+            cursor: pointer;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .checkbox-text {
+            font-weight: 500;
+            color: #333;
+            line-height: 1.4;
+        }
+
+        .checkbox-help {
+            margin-left: 32px;
+            margin-top: 5px;
+            display: block;
+            color: #666;
+            font-size: 13px;
+        }
+
+        /* OAuth configuration sections */
+        .oauth-config-sections {
+            transition: all 0.3s ease;
+        }
+        
+        .color-picker-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .color-picker-group input[type="color"] {
+            width: 50px;
+            height: 40px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .color-text {
+            width: 100px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f8f9fa;
+        }
+
+        .color-text-sm {
+            width: 80px;
+            padding: 4px 6px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f8f9fa;
+            font-size: 12px;
+            cursor: text;
+        }
+
+        /* Form layout improvements */
+        .form-row {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .form-group-half {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .form-group-third {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .form-group-quarter {
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .form-group-full {
+            width: 100%;
+        }
+
+        /* Color customization sections */
+        .color-subsection {
+            margin-bottom: 25px;
+            padding: 15px;
+            background-color: #ffffff;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+        }
+
+        .color-subsection h4 {
+            margin: 0 0 15px 0;
+            color: #495057;
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #e9ecef;
+            padding-bottom: 8px;
+        }
+
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .color-item {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .color-item label {
+            font-size: 13px;
+            font-weight: 500;
+            color: #495057;
+            margin-bottom: 5px;
+        }
+
+        .color-picker-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .color-picker-group input[type="color"] {
+            width: 40px;
+            height: 32px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        /* Font customization sections */
+        .font-subsection {
+            margin-bottom: 25px;
+            padding: 15px;
+            background-color: #ffffff;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+        }
+
+        .font-subsection h4 {
+            margin: 0 0 15px 0;
+            color: #495057;
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #e9ecef;
+            padding-bottom: 8px;
+        }
+
+        /* Preview notification */
+        .preview-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,123,255,0.3);
+            z-index: 10000;
+            max-width: 300px;
+            animation: slideInRight 0.3s ease-out;
+        }
+
+        .preview-content {
+            text-align: left;
+        }
+
+        .preview-content strong {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .preview-content p {
+            margin: 5px 0 10px 0;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .preview-content .btn {
+            font-size: 12px;
+            padding: 4px 8px;
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+        }
+
+        .preview-content .btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* Improve section headers */
+        .settings-section h3 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 0;
+            color: #333;
+            border-bottom: 2px solid var(--primary-color, #007bff);
+            padding-bottom: 10px;
+            font-size: 18px;
+        }
+
+        /* Enhanced form actions */
+        .form-actions {
+            text-align: right;
+            padding-top: 25px;
+            border-top: 2px solid #dee2e6;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+        }
+
+        .form-actions .btn {
+            min-width: 120px;
+        }
+        
+        .api-key-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .api-key-group input {
+            flex: 1;
+            min-width: 250px;
+        }
+        
+        .api-key-group .btn-sm {
+            white-space: nowrap;
+            min-width: 80px;
+        }
+        
+        .oauth-instructions {
+            margin-top: 30px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .instruction-section {
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .instruction-section h4 {
+            margin-top: 0;
+            color: #495057;
+        }
+        
+        .instruction-section ol {
+            padding-left: 20px;
+        }
+        
+        .instruction-section li {
+            margin-bottom: 8px;
+        }
+        
+        .instruction-section code {
+            background-color: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 13px;
+            word-break: break-all;
+        }
+        
+        .instruction-section a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        
+        .instruction-section a:hover {
+            text-decoration: underline;
+        }
+        
+        .setup-note {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 4px;
+            color: #856404;
+            font-size: 13px;
+        }
+        
+        .btn-sm {
+            padding: 4px 8px;
+            font-size: 12px;
+            border-radius: 3px;
+        }
+        
+        .current-logo {
+            margin-top: 10px;
+            padding: 15px;
+            background-color: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .logo-preview {
+            max-width: 200px;
+            max-height: 100px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            display: block;
+            margin: 10px 0;
+        }
+        
+        .logo-actions {
+            margin-top: 10px;
+        }
+        
+        .logo-upload-section {
+            margin-top: 10px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+        }
+        
+        .logo-upload-section p {
+            margin-bottom: 10px;
+            font-weight: 500;
+            color: #495057;
+        }
+        
+        .form-actions {
+            text-align: right;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+        }
+        
+        @media (max-width: 768px) {
+            .oauth-instructions {
+                grid-template-columns: 1fr;
+            }
+            
+            .tab-navigation {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+    </style>
+</body>
+</html>

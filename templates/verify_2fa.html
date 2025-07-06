@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Two-Factor Authentication - Timesheet Tracker</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='guerrilla-t.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Two-Factor Authentication</h1>
+        </div>
+
+        <div class="form-container">
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    <div class="flash-messages">
+                        {% for message in messages %}
+                            <div class="flash-message error">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <form method="POST">
+                <div class="form-group">
+                    <label for="token">Enter your 6-digit authentication code:</label>
+                    <input type="text" id="token" name="token" maxlength="6" pattern="[0-9]{6}" 
+                           placeholder="123456" autocomplete="off" required>
+                    <small>Open your authenticator app and enter the 6-digit code</small>
+                </div>
+
+                <button type="submit" class="btn-primary">Verify</button>
+            </form>
+
+            <div style="margin-top: 20px; text-align: center;">
+                <p><strong>Can't access your authenticator app?</strong></p>
+                <details>
+                    <summary style="cursor: pointer; color: #007bff;">Use a backup code instead</summary>
+                    <form method="POST" style="margin-top: 10px;">
+                        <div class="form-group">
+                            <label for="backup_code">Enter one of your backup codes:</label>
+                            <input type="text" id="backup_code" name="backup_code" maxlength="8" 
+                                   placeholder="ABCD1234" style="text-transform: uppercase;">
+                            <small>Each backup code can only be used once</small>
+                        </div>
+                        <button type="submit" class="btn-secondary">Use Backup Code</button>
+                    </form>
+                </details>
+            </div>
+
+            <div style="margin-top: 20px; text-align: center;">
+                <a href="{{ url_for('auth.login') }}" class="btn-link">Back to Login</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Auto-focus on the token input
+        document.getElementById('token').focus();
+        
+        // Auto-submit when 6 digits are entered
+        document.getElementById('token').addEventListener('input', function(e) {
+            if (e.target.value.length === 6) {
+                e.target.form.submit();
+            }
+        });
+        
+        // Format backup code input
+        document.getElementById('backup_code').addEventListener('input', function(e) {
+            e.target.value = e.target.value.toUpperCase();
+        });
+    </script>
+</body>
+</html>

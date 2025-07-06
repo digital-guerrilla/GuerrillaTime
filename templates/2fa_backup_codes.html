@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backup Codes - Timesheet Tracker</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='guerrilla-t.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Two-Factor Authentication Backup Codes</h1>
+        </div>
+
+        <div class="form-container">
+            <div style="text-align: center; margin-bottom: 30px;">
+                <div class="alert alert-warning">
+                    <strong>Important:</strong> Save these backup codes in a secure location. 
+                    Each code can only be used once and will help you access your account if you lose your authenticator device.
+                </div>
+            </div>
+
+            <div style="text-align: center; margin: 30px 0;">
+                <h3>Your Backup Codes</h3>
+                <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px; padding: 20px; display: inline-block;">
+                    {% for code in backup_codes %}
+                        <div style="font-family: monospace; font-size: 16px; margin: 5px 0; letter-spacing: 1px;">
+                            {{ code }}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div style="text-align: center; margin: 30px 0;">
+                <button onclick="printCodes()" class="btn-secondary">Print Codes</button>
+                <button onclick="downloadCodes()" class="btn-secondary">Download as Text</button>
+            </div>
+
+            <div class="alert alert-info">
+                <strong>Tips for storing backup codes:</strong>
+                <ul style="text-align: left; margin-top: 10px;">
+                    <li>Print them and store in a safe place</li>
+                    <li>Save them in a secure password manager</li>
+                    <li>Keep them separate from your authenticator device</li>
+                    <li>Generate new codes if you suspect they've been compromised</li>
+                </ul>
+            </div>
+
+            <div style="text-align: center; margin-top: 30px;">
+                <a href="{{ url_for('main.index') }}" class="btn-primary">Continue to Dashboard</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function printCodes() {
+            const codes = {{ backup_codes|tojson }};
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <html>
+                <head>
+                    <title>Backup Codes - Timesheet Tracker</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 20px; }
+                        .header { text-align: center; margin-bottom: 30px; }
+                        .codes { text-align: center; }
+                        .code { font-family: monospace; font-size: 16px; margin: 10px 0; letter-spacing: 1px; }
+                        .warning { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; margin: 20px 0; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>Two-Factor Authentication Backup Codes</h1>
+                        <p>Timesheet Tracker - Generated: ${new Date().toLocaleDateString()}</p>
+                    </div>
+                    <div class="warning">
+                        <strong>Important:</strong> Keep these codes secure. Each can only be used once.
+                    </div>
+                    <div class="codes">
+                        ${codes.map(code => `<div class="code">${code}</div>`).join('')}
+                    </div>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            printWindow.print();
+        }
+
+        function downloadCodes() {
+            const codes = {{ backup_codes|tojson }};
+            const content = `Two-Factor Authentication Backup Codes
+Timesheet Tracker - Generated: ${new Date().toLocaleDateString()}
+
+IMPORTANT: Keep these codes secure. Each can only be used once.
+
+${codes.join('\n')}
+
+Tips:
+- Store in a secure location separate from your authenticator device
+- Each code can only be used once
+- Generate new codes if compromised
+`;
+            
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'timesheet-tracker-backup-codes.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>

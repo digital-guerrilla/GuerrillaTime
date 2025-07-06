@@ -1,0 +1,12 @@
+Flask
+Werkzeug
+Flask-Login
+bcrypt
+python-dotenv
+openpyxl
+requests
+msal
+cryptography
+pyotp
+qrcode[pil]
+gunicorn
