@@ -1,0 +1,11 @@
+services:
+  app:
+    container_name: guerrilla_time
+    image: docker.io/andrewwaring/guerrillatime:latest
+    ports:
+      - "8000:8000"
+    env_file:
+      - stack.env
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped

@@ -1,15 +1,8 @@
 [phases.setup]
-nixPkgs = ["python310"]
+nixPkgs = ["python313"]
 
 [phases.install]
-cmds = [
-    "pip install -r requirements.txt"
-]
+cmd = "pip install -r requirements.txt"
 
-[phases.build]
-cmds = [
-    "python -c 'from app.models.database import init_database; init_database()'"
-]
-
-[start]
-cmd = "gunicorn -c gunicorn_config.py run:app"
+[phases.start]
+cmd = "gunicorn -c gunicorn_config.py main:app"
