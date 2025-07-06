@@ -1,4 +1,4 @@
-workers = 5
+workers = 1
 worker_class = "sync"
 timeout = 5000
 worker_connections = 1000
