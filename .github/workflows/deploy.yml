@@ -1,0 +1,77 @@
+name: Build and Deploy to GitHub Container Registry
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: guerrillatime
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Install Nixpacks
+      run: |
+        curl -sSL https://nixpacks.com/install.sh | bash
+        echo "$HOME/.nixpacks/bin" >> $GITHUB_PATH
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build with Nixpacks
+      run: |
+        nixpacks build . --start-cmd "gunicorn -c gunicorn_config.py run:app"
+
+    - name: Tag and push Docker image
+      run: |
+        # Get the latest image ID created by Nixpacks
+        IMAGE_ID=$(docker images --format "{{.ID}}" | head -n 1)
+        
+        # Tag for GitHub Container Registry
+        docker tag $IMAGE_ID ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest
+        
+        # Push the image
+        docker push ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest
+        
+        echo "::notice::Successfully built and pushed image to ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest"
+
+  deploy:
+    needs: build-and-deploy
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    
+    steps:
+    - name: Deploy notification
+      run: |
+        echo "::notice::Image deployed successfully and ready for use!"
+        echo "::notice::Pull command: docker pull ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest"

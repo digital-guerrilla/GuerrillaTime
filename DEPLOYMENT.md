@@ -1,4 +1,102 @@
-# Production Deployment Guide
+# GuerrillaTime Deployment Guide
+
+## Overview
+This guide covers the deployment of GuerrillaTime to GitHub Container Registry using Nixpacks and Docker.
+
+## Prerequisites
+
+### Local Development
+1. **Docker** - Install Docker Desktop
+2. **Nixpacks** - Install via curl:
+   ```bash
+   curl -sSL https://nixpacks.com/install.sh | bash
+   ```
+3. **GitHub Personal Access Token** with `packages:write` permission
+
+### Environment Setup
+1. Create a `.env` file in the project root:
+   ```env
+   GITHUB_TOKEN=your_github_token_here
+   ```
+
+## Deployment Methods
+
+### Method 1: Local Build Script
+
+#### For Unix/Linux/macOS:
+```bash
+chmod +x build.sh
+./build.sh
+```
+
+#### For Windows (PowerShell):
+```powershell
+.\build.ps1
+```
+
+### Method 2: GitHub Actions (Recommended)
+The repository includes an automated GitHub Actions workflow that:
+- Triggers on push to main/master branch
+- Builds the application with Nixpacks
+- Pushes to GitHub Container Registry
+- Provides deployment notifications
+
+To use:
+1. Push your code to the main/master branch
+2. GitHub Actions will automatically build and deploy
+3. Check the Actions tab for deployment status
+
+## Container Registry Information
+
+- **Registry**: `ghcr.io`
+- **Repository**: `ghcr.io/digital-guerrilla/guerrillatime`
+- **Tags**: `latest` for main branch
+
+## Running the Deployed Container
+
+### Pull and Run:
+```bash
+# Pull the latest image
+docker pull ghcr.io/digital-guerrilla/guerrillatime:latest
+
+# Run the container
+docker run -p 8000:8000 \
+  -e PORT=8000 \
+  -e SECRET_KEY=your_secret_key \
+  -e DATABASE_URL=your_database_url \
+  ghcr.io/digital-guerrilla/guerrillatime:latest
+```
+
+### Docker Compose Example:
+```yaml
+version: '3.8'
+services:
+  guerrillatime:
+    image: ghcr.io/digital-guerrilla/guerrillatime:latest
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - SECRET_KEY=${SECRET_KEY}
+      - DATABASE_URL=${DATABASE_URL}
+    restart: unless-stopped
+```
+
+## Configuration Files
+
+### `gunicorn_config.py`
+Production-ready Gunicorn configuration with:
+- Automatic worker scaling based on CPU cores
+- Proper logging configuration
+- Memory leak prevention
+- Health check timeouts
+
+### `nixpacks.toml`
+Nixpacks build configuration:
+- Python 3.10 runtime
+- Automatic dependency installation
+- Database initialization during build
+- Optimized start command
 
 ## Docker/Nixpacks Deployment
 
