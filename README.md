@@ -42,37 +42,7 @@ Timesheets/
 
 ## Installation
 
-1. Install Python 3.7 or higher
-2. Create a virtual environment (recommended):
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   ```
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-4. Configure environment variables:
-   - Copy `.env.example` to `.env` (or create `.env`)
-   - Set your admin credentials and secret key:
-   ```
-   SECRET_KEY=your-secret-key-here
-   ADMIN_EMAIL=admin@yourcompany.com
-   ADMIN_PASSWORD=your-secure-admin-password
-   ```
-
-## Running the Application
-
-1. Navigate to the project directory
-2. Run the Flask application:
-   ```bash
-   python app.py
-   ```
-3. Open your browser and go to `http://localhost:5000`
-4. **First Time Setup:**
-   - Register a new user account
-   - The admin account is automatically created using credentials from `.env`
-   - Login with your user account to start tracking time
+use the docker-compose.yaml to spin up a docker container
 
 ## Usage
 
