@@ -1,4 +1,4 @@
-# Guerrilla T ⚡
+# Guerrilla Time ⚡
 
 *Smart Time Tracking by Digital Guerrilla*
 
