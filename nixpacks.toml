@@ -3,7 +3,6 @@ nixPkgs = ["python310"]
 
 [phases.install]
 cmds = [
-    "pip install --upgrade pip",
     "pip install -r requirements.txt"
 ]
 
