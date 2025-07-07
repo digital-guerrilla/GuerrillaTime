@@ -45,9 +45,10 @@ def create_app(config_name='default'):
     init_login_manager(app)
     
     # Initialize database
-    from .models.database import init_database, create_admin_user
+    from .models.database import init_database, create_admin_user, ensure_oauth_settings_exist
     init_database()
     create_admin_user()
+    ensure_oauth_settings_exist()
     
     # Register blueprints
     from .blueprints.auth import auth_bp

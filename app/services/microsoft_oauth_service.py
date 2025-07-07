@@ -21,12 +21,19 @@ class MicrosoftOAuthService:
         """Get OAuth settings as a dictionary"""
         settings_list = self.settings_service.get_settings_by_category('oauth')
         
+        # Debug logging
+        logger.info(f"Retrieved {len(settings_list) if settings_list else 0} OAuth settings from database")
+        if settings_list:
+            for setting in settings_list:
+                logger.info(f"Setting: {setting['setting_key']} = {setting['setting_value'][:10] if setting['setting_value'] else 'None'}...")
+        
         # Convert list to dictionary for easier access
         settings = {}
         if settings_list:
             for setting in settings_list:
                 settings[setting['setting_key']] = setting['setting_value']
         
+        logger.info(f"Converted settings dict keys: {list(settings.keys())}")
         return settings
     
     def _get_msal_app(self):

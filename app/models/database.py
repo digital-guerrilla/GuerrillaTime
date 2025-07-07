@@ -140,6 +140,9 @@ def init_database():
     # Seed default projects if table is empty
     seed_default_projects(conn)
     
+    # Seed default system settings if table is empty
+    seed_default_system_settings(conn)
+    
     conn.close()
 
 
@@ -170,6 +173,41 @@ def seed_default_projects(conn):
         print("Default projects seeded")
 
 
+def seed_default_system_settings(conn):
+    """Seed default system settings if the system_settings table is empty"""
+    count = conn.execute('SELECT COUNT(*) FROM system_settings').fetchone()[0]
+    
+    if count == 0:
+        # Default system settings
+        default_settings = [
+            # Customization settings
+            ('custom_company_name', 'Guerrilla T', 'text', 0, 'Company name displayed in the application', 'customization'),
+            ('custom_logo_url', '', 'text', 0, 'URL or path to company logo', 'customization'),
+            ('custom_primary_color', '#007bff', 'color', 0, 'Primary brand color', 'customization'),
+            ('custom_secondary_color', '#6c757d', 'color', 0, 'Secondary brand color', 'customization'),
+            ('custom_success_color', '#28a745', 'color', 0, 'Success color', 'customization'),
+            ('custom_danger_color', '#dc3545', 'color', 0, 'Danger/error color', 'customization'),
+            ('custom_warning_color', '#ffc107', 'color', 0, 'Warning color', 'customization'),
+            ('custom_info_color', '#17a2b8', 'color', 0, 'Info color', 'customization'),
+            
+            # OAuth settings
+            ('oauth_allow_sso', 'false', 'checkbox', 0, 'Enable Microsoft OAuth single sign-on', 'oauth'),
+            ('oauth_disable_passwords', 'false', 'checkbox', 0, 'Disable password authentication (SSO only)', 'oauth'),
+            ('oauth_tenant_id', '', 'text', 0, 'Microsoft Azure tenant ID or domain', 'oauth'),
+            ('oauth_client_id', '', 'text', 0, 'Microsoft Azure application client ID', 'oauth'),
+            ('oauth_client_secret', '', 'password', 1, 'Microsoft Azure application client secret', 'oauth'),
+            ('oauth_redirect_uri', '', 'text', 0, 'OAuth redirect URI (leave blank for auto-detection)', 'oauth'),
+        ]
+        
+        conn.executemany('''
+            INSERT INTO system_settings (setting_key, setting_value, setting_type, is_encrypted, description, category)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', default_settings)
+        
+        conn.commit()
+        print("Default system settings seeded")
+
+
 def create_admin_user():
     """Create admin user if it doesn't exist"""
     admin_email = os.getenv('ADMIN_EMAIL')
@@ -194,5 +232,37 @@ def create_admin_user():
             ''', (admin_email, hashed_password))
             conn.commit()
             print(f"Admin user created: {admin_email}")
+    finally:
+        conn.close()
+
+
+def ensure_oauth_settings_exist():
+    """Ensure OAuth settings exist in the database (for existing databases)"""
+    conn = get_db_connection()
+    try:
+        # Check if OAuth settings exist
+        oauth_count = conn.execute('''
+            SELECT COUNT(*) FROM system_settings WHERE category = 'oauth'
+        ''').fetchone()[0]
+        
+        if oauth_count == 0:
+            print("OAuth settings not found, adding them...")
+            # OAuth settings to add
+            oauth_settings = [
+                ('oauth_allow_sso', 'false', 'checkbox', 0, 'Enable Microsoft OAuth single sign-on', 'oauth'),
+                ('oauth_disable_passwords', 'false', 'checkbox', 0, 'Disable password authentication (SSO only)', 'oauth'),
+                ('oauth_tenant_id', '', 'text', 0, 'Microsoft Azure tenant ID or domain', 'oauth'),
+                ('oauth_client_id', '', 'text', 0, 'Microsoft Azure application client ID', 'oauth'),
+                ('oauth_client_secret', '', 'password', 1, 'Microsoft Azure application client secret', 'oauth'),
+                ('oauth_redirect_uri', '', 'text', 0, 'OAuth redirect URI (leave blank for auto-detection)', 'oauth'),
+            ]
+            
+            conn.executemany('''
+                INSERT INTO system_settings (setting_key, setting_value, setting_type, is_encrypted, description, category)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', oauth_settings)
+            
+            conn.commit()
+            print("OAuth settings added to existing database")
     finally:
         conn.close()
